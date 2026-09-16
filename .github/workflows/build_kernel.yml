@@ -122,6 +122,16 @@ on:
         required: true
         default: false
         type: boolean
+      fast_charge:
+        description: 'Prefer high-current PD and 9V QC/AFC? [EXPERIMENTAL]'
+        required: true
+        default: false
+        type: boolean
+      experimental_features:
+        description: 'Comma list: sched_tuning,audio_jack_ir,bt_hci_snoop,bt_audio_transport,wowlan_keepalive [EXPERIMENTAL]'
+        required: false
+        default: ''
+        type: string
       clock:
         description: 'CPU clock mode [EXPERIMENT]'
         required: true
@@ -159,12 +169,21 @@ jobs:
   setup:
     name: Resolve matrix
     runs-on: ubuntu-latest
+    env:
+      EXPERIMENTAL_FEATURES: ${{ inputs.experimental_features }}
     outputs:
       profiles: ${{ steps.set.outputs.profiles }}
       devices: ${{ steps.set.outputs.devices }}
     steps:
       - id: set
         run: |
+          IFS=',' read -ra EXTRA_FLAGS <<< "$EXPERIMENTAL_FEATURES"
+          for FLAG in "${EXTRA_FLAGS[@]}"; do
+            case "$FLAG" in
+              ''|sched_tuning|audio_jack_ir|bt_hci_snoop|bt_audio_transport|wowlan_keepalive) ;;
+              *) echo "Unknown experimental feature: $FLAG"; exit 1 ;;
+            esac
+          done
           if [ "${{ inputs.profile }}" = "all" ]; then
             echo 'profiles=["perf", "balance", "battery"]' >> $GITHUB_OUTPUT
           else
@@ -189,6 +208,7 @@ jobs:
       DEVICE_CHOICE: ${{ matrix.device }}
       KSU_CHOICE: ${{ inputs.ksu }}
       PROFILE_CHOICE: ${{ matrix.profile }}
+      EXPERIMENTAL_FEATURES: ${{ inputs.experimental_features }}
 
     steps:
       - name: Checkout Kernel Source
@@ -214,7 +234,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: out
-          key: out-${{ matrix.device }}-${{ matrix.profile }}-${{ inputs.opt }}-${{ inputs.ksu }}-${{ inputs.lto }}-${{ inputs.zen }}-${{ inputs.aio_opt }}-${{ inputs.wireguard }}-${{ inputs.nosec }}-${{ inputs.nodebug }}-${{ inputs.dynamic_fsync }}-${{ inputs.burnin }}-${{ inputs.simple_gpu }}-${{ inputs.mali_boost }}-${{ inputs.mtk_bus_boost }}-${{ hashFiles('arch/arm64/configs/**', 'drivers/**', 'kernel/**', 'fs/**', 'block/**', 'crypto/**', 'net/**') }}
+          key: out-${{ matrix.device }}-${{ matrix.profile }}-${{ inputs.opt }}-${{ inputs.ksu }}-${{ inputs.lto }}-${{ inputs.zen }}-${{ inputs.aio_opt }}-${{ inputs.wireguard }}-${{ inputs.nosec }}-${{ inputs.nodebug }}-${{ inputs.dynamic_fsync }}-${{ inputs.burnin }}-${{ inputs.simple_gpu }}-${{ inputs.mali_boost }}-${{ inputs.mtk_bus_boost }}-${{ inputs.fast_charge }}-${{ inputs.experimental_features }}-${{ hashFiles('arch/arm64/configs/**', 'drivers/**', 'kernel/**', 'fs/**', 'block/**', 'crypto/**', 'net/**') }}
           restore-keys: |
             out-${{ matrix.device }}-${{ matrix.profile }}-
 
@@ -255,6 +275,12 @@ jobs:
           export KCPPFLAGS=" -${{ inputs.opt }}"
           export CONFIG_SECTION_MISMATCH_WARN_ONLY=y
           export CFGDIR=arch/arm64/configs
+          has_feature() {
+            case ",$EXPERIMENTAL_FEATURES," in
+              *,"$1",*) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
           rm -f $CFGDIR/compiled_defconfig
           cat $CFGDIR/mt6768_lucreticus_defconfig $CFGDIR/${{ env.DEVICE_CHOICE }}.config > $CFGDIR/compiled_defconfig
           if [ "${{ matrix.profile }}" != "balance" ]; then
@@ -388,6 +414,34 @@ jobs:
           else
             scripts/config --file $CFGDIR/compiled_defconfig --disable CONFIG_MTK_DEVFREQ_BUS_BOOST
           fi
+          if has_feature sched_tuning; then
+            scripts/config --file $CFGDIR/compiled_defconfig --enable CONFIG_LUCRETICUS_SCHED_TUNING
+          else
+            scripts/config --file $CFGDIR/compiled_defconfig --disable CONFIG_LUCRETICUS_SCHED_TUNING
+          fi
+          if [ "${{ inputs.fast_charge }}" = "true" ]; then
+            scripts/config --file $CFGDIR/compiled_defconfig --enable CONFIG_LUCRETICUS_FAST_CHARGE_PROFILE
+          else
+            scripts/config --file $CFGDIR/compiled_defconfig --disable CONFIG_LUCRETICUS_FAST_CHARGE_PROFILE
+          fi
+          if has_feature bt_hci_snoop; then
+            scripts/config --file $CFGDIR/compiled_defconfig \
+              --enable CONFIG_FTRACE \
+              --enable CONFIG_TRACING \
+              --enable CONFIG_MTK_BT_HCI_TRACE
+          else
+            scripts/config --file $CFGDIR/compiled_defconfig --disable CONFIG_MTK_BT_HCI_TRACE
+          fi
+          if has_feature bt_audio_transport; then
+            scripts/config --file $CFGDIR/compiled_defconfig --enable CONFIG_MTK_BT_AUDIO_TRANSPORT
+          else
+            scripts/config --file $CFGDIR/compiled_defconfig --disable CONFIG_MTK_BT_AUDIO_TRANSPORT
+          fi
+          if has_feature wowlan_keepalive; then
+            scripts/config --file $CFGDIR/compiled_defconfig --enable CONFIG_MTK_WLAN_WOWLAN_KEEPALIVE
+          else
+            scripts/config --file $CFGDIR/compiled_defconfig --disable CONFIG_MTK_WLAN_WOWLAN_KEEPALIVE
+          fi
           if [ "${{ inputs.clock }}" = "overclock" ]; then
             scripts/config --file $CFGDIR/compiled_defconfig \
               --enable CONFIG_LUCRETICUS_OC_GPU \
@@ -438,9 +492,24 @@ jobs:
             exit 1
           fi
 
+      - name: Package audio-jack IR tool
+        run: |
+          case ",$EXPERIMENTAL_FEATURES," in
+            *,audio_jack_ir,*)
+              mkdir -p sta7dust/extras
+              cp tools/lucreticus/audio_jack_ir.py sta7dust/extras/
+              ;;
+          esac
+
       - name: Create Flashable Zip
         run: |
           cd sta7dust
+          has_feature() {
+            case ",$EXPERIMENTAL_FEATURES," in
+              *,"$1",*) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
           SUFFIX="${{ matrix.profile }}-${{ inputs.opt }}"
           if [ "${{ inputs.ksu }}" = "true" ]; then
             SUFFIX="$SUFFIX-ksu"
@@ -481,6 +550,24 @@ jobs:
           if [ "${{ inputs.mtk_bus_boost }}" = "true" ]; then
             SUFFIX="$SUFFIX-busboost"
           fi
+          if has_feature sched_tuning; then
+            SUFFIX="$SUFFIX-stune"
+          fi
+          if [ "${{ inputs.fast_charge }}" = "true" ]; then
+            SUFFIX="$SUFFIX-fastchg"
+          fi
+          if has_feature audio_jack_ir; then
+            SUFFIX="$SUFFIX-irjack"
+          fi
+          if has_feature bt_hci_snoop; then
+            SUFFIX="$SUFFIX-bttrace"
+          fi
+          if has_feature bt_audio_transport; then
+            SUFFIX="$SUFFIX-btbuf"
+          fi
+          if has_feature wowlan_keepalive; then
+            SUFFIX="$SUFFIX-wowlan"
+          fi
           if [ "${{ inputs.clock }}" = "overclock" ]; then
             SUFFIX="$SUFFIX-oc"
           elif [ "${{ inputs.clock }}" = "downclock" ]; then
@@ -517,6 +604,8 @@ jobs:
     name: Telegram summary
     needs: build
     runs-on: ubuntu-latest
+    env:
+      EXPERIMENTAL_FEATURES: ${{ inputs.experimental_features }}
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -527,6 +616,12 @@ jobs:
       - name: Send Telegram summary
         run: |
           cd builds
+          has_feature() {
+            case ",$EXPERIMENTAL_FEATURES," in
+              *,"$1",*) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
           shopt -s nullglob
           ZIPS=(lucreticus-r1-Armaros-*.zip)
           if [ ${#ZIPS[@]} -eq 0 ]; then
@@ -549,6 +644,12 @@ jobs:
           if [ "${{ inputs.simple_gpu }}" = "true" ]; then SGPU_STATUS="yes"; else SGPU_STATUS="no"; fi
           if [ "${{ inputs.mali_boost }}" = "true" ]; then MBOOST_STATUS="yes"; else MBOOST_STATUS="no"; fi
           if [ "${{ inputs.mtk_bus_boost }}" = "true" ]; then BUS_STATUS="yes"; else BUS_STATUS="no"; fi
+          if has_feature sched_tuning; then STUNE_STATUS="yes"; else STUNE_STATUS="no"; fi
+          if [ "${{ inputs.fast_charge }}" = "true" ]; then CHARGE_STATUS="yes"; else CHARGE_STATUS="no"; fi
+          if has_feature audio_jack_ir; then IR_STATUS="yes"; else IR_STATUS="no"; fi
+          if has_feature bt_hci_snoop; then BT_TRACE_STATUS="yes"; else BT_TRACE_STATUS="no"; fi
+          if has_feature bt_audio_transport; then BT_BUF_STATUS="yes"; else BT_BUF_STATUS="no"; fi
+          if has_feature wowlan_keepalive; then WOWLAN_STATUS="yes"; else WOWLAN_STATUS="no"; fi
           CLOCK_STATUS="${{ inputs.clock }}"
           HZ_STATUS="${{ inputs.hz }}"
           GPU_CLOCK_STATUS="${{ inputs.gpu_clock }}"
@@ -565,6 +666,7 @@ jobs:
             echo "$ZIP $MD5" >> files.txt
           done
           TEXT=$(printf '<i>build successfully.</i>\n\nlucreticus kernel (%s builds)\n\nkernel version: 5.10.239 (spoofed)\nlucreticus patch version: r1-Armaros\n\ncompiler: ZyC Clang 14 -%s\nlto: %s\nkernelsu integrated: %s\ndroidspaces: %s\nnomount: %s\niosched: %s\naio optimized: %s\nwireguard: %s\nsamsung security: %s\ndebug: %s\ncache: %s\nbypass charging: %s\ndocker: %s\ndynamic fsync: %s\nburn-in profile: %s\nsimple GPU: %s\nMali boost: %s\nMTK bus boost: %s\nclock: %s\ntick: %sHz\ngpu clock: %s\ncommit: %s\n%s' "$COUNT" "${{ inputs.opt }}" "${{ inputs.lto }}" "$KSU_STATUS" "$DS_STATUS" "$NM_STATUS" "$ZEN_STATUS" "$AIO_STATUS" "$WG_STATUS" "$SEC_STATUS" "$DBG_STATUS" "$CACHE_STATUS" "$BYPASS_STATUS" "$DOCKER_STATUS" "$FSYNC_STATUS" "$BURNIN_STATUS" "$SGPU_STATUS" "$MBOOST_STATUS" "$BUS_STATUS" "$CLOCK_STATUS" "$HZ_STATUS" "$GPU_CLOCK_STATUS" "${{ github.sha }}" "$LIST")
+          TEXT=$(printf '%s\nscheduler tuning: %s\nfast-charge profile: %s\naudio-jack IR tool: %s\nBT HCI trace: %s\nBT transport buffer: %s\nWoWLAN retention: %s' "$TEXT" "$STUNE_STATUS" "$CHARGE_STATUS" "$IR_STATUS" "$BT_TRACE_STATUS" "$BT_BUF_STATUS" "$WOWLAN_STATUS")
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             --data-urlencode "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
             --data-urlencode "parse_mode=HTML" \
