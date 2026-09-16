@@ -323,4 +323,14 @@ config NOMOUNT
 	  Hide sensitive mountpoints from /proc mounts visibility and
 	  provide VFS mount/umount hooks plus /proc/nomount_enabled.
 
+config DYNAMIC_FSYNC
+	bool "Dynamic fsync on display blank [EXPERIMENTAL]"
+	depends on FB && PM_SLEEP
+	default n
+	help
+	  Defer fsync and fdatasync calls on writable regular files while the
+	  display is on, then sync when the display blanks or system suspends.
+	  This trades crash durability for fewer storage flushes. Runtime control
+	  is available at /sys/kernel/dyn_fsync/Dyn_fsync_active.
+
 endmenu

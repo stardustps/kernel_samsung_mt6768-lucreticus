@@ -23,6 +23,7 @@ endif
 
 obj-$(CONFIG_PROC_FS) += proc_namespace.o
 obj-$(CONFIG_NOMOUNT) += nomount.o
+obj-$(CONFIG_DYNAMIC_FSYNC) += dynamic_fsync.o
 obj-$(CONFIG_PROC_DLOG) += dlog_hook.o
 
 obj-y				+= notify/

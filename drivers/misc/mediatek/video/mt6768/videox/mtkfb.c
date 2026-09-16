@@ -16,6 +16,7 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/fb.h>
+#include <linux/dynamic_fsync.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
@@ -284,6 +285,7 @@ static int mtkfb_blank(int blank_mode, struct fb_info *info)
 
 		primary_display_set_power_mode(FB_RESUME);
 		mtkfb_late_resume();
+		dynamic_fsync_screen_event(true);
 
 		debug_print_power_mode_check(prev_pm, FB_RESUME);
 		break;
@@ -300,6 +302,7 @@ static int mtkfb_blank(int blank_mode, struct fb_info *info)
 
 		primary_display_set_power_mode(FB_SUSPEND);
 		mtkfb_early_suspend();
+		dynamic_fsync_screen_event(false);
 
 		debug_print_power_mode_check(prev_pm, FB_SUSPEND);
 
