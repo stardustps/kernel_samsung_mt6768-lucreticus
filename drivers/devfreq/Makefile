@@ -54,3 +54,4 @@ obj-$(CONFIG_PM_DEVFREQ_EVENT)		+= event/
 
 # DEVFREQ Boost
 obj-$(CONFIG_DEVFREQ_BOOST)		+= devfreq_boost.o
+obj-$(CONFIG_MTK_DEVFREQ_BUS_BOOST)	+= mtk_bus_boost.o

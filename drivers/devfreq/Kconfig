@@ -156,6 +156,15 @@ config DEVFREQ_BOOST
 	  achieve optimal device performance by requesting boosts on key events,
 	  such as when a frame is ready to rendered to the display.
 
+config MTK_DEVFREQ_BUS_BOOST
+	bool "MediaTek bus input boost [EXPERIMENTAL]"
+	depends on MACH_MT6768 && INPUT
+	default n
+	help
+	  Temporarily request a faster DDR OPP through MediaTek's DVFSRC
+	  PM QoS interface after touchscreen input. This is separate from the
+	  Qualcomm devfreq boost device and does not override other QoS votes.
+
 if DEVFREQ_BOOST
 
 config DEVFREQ_INPUT_BOOST_DURATION_MS
