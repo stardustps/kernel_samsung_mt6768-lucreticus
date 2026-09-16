@@ -795,6 +795,32 @@ static void sec_bat_usb_factory_clear(struct sec_battery_info *battery)
 #endif
 
 #if defined(CONFIG_PDIC_NOTIFIER)
+#if defined(CONFIG_LUCRETICUS_FAST_CHARGE_PROFILE)
+static int sec_bat_high_current_pdo(struct sec_battery_info *battery)
+{
+	int i, best = 0, best_current = 0, best_voltage = 0;
+	int count = min_t(int, battery->pd_list.num_fpdo, MAX_PDO_NUM);
+
+	for (i = 1; i < count; i++) {
+		int current = battery->pd_list.pd_info[i].max_current;
+		int voltage = battery->pd_list.pd_info[i].max_voltage;
+
+		if (voltage <= 5000 || voltage > 9000 || !current)
+			continue;
+		if (battery->pdata->max_input_current > 0)
+			current = min(current, battery->pdata->max_input_current);
+		if (current > best_current ||
+		    (current == best_current && voltage > best_voltage)) {
+			best = i;
+			best_current = current;
+			best_voltage = voltage;
+		}
+	}
+
+	return best ? best : battery->pd_list.num_fpdo - 1;
+}
+#endif
+
 static void sec_bat_change_pdo(struct sec_battery_info *battery, int vol)
 {
 	int target_pd_index = 0;
@@ -804,6 +830,9 @@ static void sec_bat_change_pdo(struct sec_battery_info *battery, int vol)
 		if (vol == SEC_INPUT_VOLTAGE_9V) {
 			/* select PDO greater than 5V */
 			target_pd_index = battery->pd_list.num_fpdo - 1;
+#if defined(CONFIG_LUCRETICUS_FAST_CHARGE_PROFILE)
+			target_pd_index = sec_bat_high_current_pdo(battery);
+#endif
 		} else {
 			/* select 5V PDO */
 			target_pd_index = 0;
@@ -863,7 +892,8 @@ bool sec_bat_change_vbus(struct sec_battery_info *battery)
 			target_vbus = SEC_INPUT_VOLTAGE_5V;
 #endif
 		else if (battery->siop_level >= 100) {
-			if (is_hv_wire_12v_type(battery->cable_type))
+			if (!IS_ENABLED(CONFIG_LUCRETICUS_FAST_CHARGE_PROFILE) &&
+			    is_hv_wire_12v_type(battery->cable_type))
 				target_vbus = SEC_INPUT_VOLTAGE_12V;
 			else
 				target_vbus = SEC_INPUT_VOLTAGE_9V;
@@ -935,6 +965,9 @@ static bool sec_bat_change_vbus_pd(struct sec_battery_info *battery)
 		if ((battery->siop_level >= 100) && (!(battery->pdata->flash_state))) {
 			/* select PDO greater than 5V */
 			target_pd_index = battery->pd_list.num_fpdo - 1;
+#if defined(CONFIG_LUCRETICUS_FAST_CHARGE_PROFILE)
+			target_pd_index = sec_bat_high_current_pdo(battery);
+#endif
 		} else {
 			/* select 5V PDO */
 			target_pd_index = 0;

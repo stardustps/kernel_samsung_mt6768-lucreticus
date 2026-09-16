@@ -102,6 +102,15 @@ config AFC_CHARGER_MODE
 	help
 	  Say Y to include support for sec afc charging support
 
+config LUCRETICUS_FAST_CHARGE_PROFILE
+	bool "Prefer high-current USB-PD and 9V QC/AFC profiles"
+	depends on BATTERY_SAMSUNG && SUPPORT_HV_CTRL
+	default n
+	help
+	  Prefer an advertised fixed PD profile at or below 9V with the
+	  highest available input current. Prefer 9V for QC/AFC. Existing
+	  source capability, battery, thermal and input-current votes apply.
+
 config SAMSUNG_LPM_MODE
 	bool "Off charging mode support in sec battery driver"
 	default n
