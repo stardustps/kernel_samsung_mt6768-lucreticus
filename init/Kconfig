@@ -654,6 +654,14 @@ config UCLAMP_TASK
 
 	  If in doubt, say N.
 
+config LUCRETICUS_SCHED_TUNING
+	bool "Lucreticus SchedTune and uclamp tuning"
+	depends on SCHED_TUNE && UCLAMP_TASK
+	default n
+	help
+	  Set a modest default utilization floor and extend the SchedTune
+	  boost hold time. Cgroup and sysctl controls remain available.
+
 config UCLAMP_GROUPS_COUNT
 	int "Number of different utilization clamp values supported"
 	range 0 32
