@@ -21,6 +21,10 @@ Source: `stardustps/kernel_samsung_mt6768-lucreticus` (`rc1` branch, fork of `Sa
 - **Droidspaces** — container prerequisites enabled in base defconfig: `SYSVIPC, POSIX_MQUEUE, IPC_NS, USER_NS, CGROUP_NET_PRIO, DEVTMPFS, TMPFS_POSIX_ACL/XATTR, NF_TABLES, NETFILTER_XT_MATCH_ADDRTYPE`.
 - **Aigis** — VoLTE IPv6 `ip6_output` cork fix retained, Mali Valhall `r32p1` pinned (`CONFIG_MTK_GPU_VERSION="mali valhall r32p1"`).
 - **Zen I/O scheduler** — `block/zen-iosched.c` (FCFS + deadlines, `sync_expire=HZ/2`, `async_expire=5*HZ`), `IOSCHED_ZEN` / `DEFAULT_ZEN`.
+- **Dynamic fsync (experimental)** — defers writable regular-file `fsync`/`fdatasync` while the display is on, then syncs at display blank and suspend. It is controlled by `CONFIG_DYNAMIC_FSYNC` and the kernel-manager-compatible `/sys/kernel/dyn_fsync/Dyn_fsync_active`. A crash before the next sync can lose recent writes.
+- **OLED burn-in profile (experimental)** — caps normal brightness on the A32/A22/M22/M32 Samsung OLED panels (including F22 through its M22 config) at level 220 by default (`CONFIG_LUCRETICUS_BURNIN_PROTECTION`). AOD and the A32 fingerprint mask path are left to the panel driver. Runtime parameters are `/sys/module/lucreticus_burnin/parameters/enabled` and `max_level` (1–255); changes take effect on the next brightness update.
+- **Simple GPU Algorithm / Mali touch boost (experimental)** — optional GED tuning for the MT6768 Mali GPU. `MTK_SIMPLE_GPU_ALGORITHM` biases high-load requests up one OPP and holds against rapid downscaling; `MTK_MALI_BOOST` adapts AdrenoBoost-style touch requests to Mali, with level 0–3 through `/sys/module/ged/parameters/mali_boost_level`. GED's customization and thermal ceilings remain active.
+- **MediaTek bus boost (experimental)** — `MTK_DEVFREQ_BUS_BOOST` requests DDR OPP 1 for 100 ms after touchscreen input through MediaTek DVFSRC PM QoS. Runtime parameters are `enabled`, `boost_opp` (0–2), and `duration_ms` (20–1000) under `/sys/module/mtk_bus_boost/parameters/`.
 - **AIO** — gated completion wakeups (`wait_min_nr` / `last_wakeup_completed`) and acquire/release for `ring->tail`, `CONFIG_AIO_OPTIMIZE=y`.
 - **Bypass charging** — `CONFIG_MTK_BYPASS_CHARGING` (mediatek), `sysfs` `/sys/kernel/bypass_charging/bypass_charging` and `bypass_charging` module param, `_mtk_charger_do_charging` suppresses charging when enabled.
 - **WireGuard** — `wireguard-linux-compat` via `kernel-tree-scripts/jury-rig.sh` at build time, `CONFIG_WIREGUARD` + `NET_UDP_TUNNEL/DST_CACHE/CRYPTO_ALGAPI`, compat `__kernel_timespec` guarded for this tree's `time64.h` backport.
@@ -108,8 +112,9 @@ WireGuard (if enabled in CI): `git clone --depth 1 https://github.com/WireGuard/
 - `hz` — `100/250/300/1000` (`CONFIG_HZ`)
 - `gpu_clock` — `stock/overclock/downclock/max` (`LUCRETICUS_OC_GPU`)
 - `nosec` / `nodebug` / `use_cache` — experimentals
+- `dynamic_fsync` / `burnin` / `simple_gpu` / `mali_boost` / `mtk_bus_boost` — independent experimental feature toggles, off by default
 
-Build does: deps → ZyC Clang 14 → optional KernelSU/WireGuard → merge defconfigs → `scripts/config` toggles → `make compiled_defconfig` → `make -s -C out -j$(nproc)` → `stardustps/sta7dust` (`Image`→`Image.gz`) → flashable zip `lucreticus-r1-Armaros-<device>-<profile>-<opt>[-ksu][-ds][-nm][-zen][-docker][-bypass][-oc/-uv][-hz][-gpu*][-wg][-thinlto][-cache]-<sha>.zip` → artifact + single Telegram summary (`notify` job, `sendMessage` + per-zip `sendDocument`, guarded against empty artifact set).
+Build does: deps → ZyC Clang 14 → optional KernelSU/WireGuard → merge defconfigs → `scripts/config` toggles → `make compiled_defconfig` → `make -s -C out -j$(nproc)` → `stardustps/sta7dust` (`Image`→`Image.gz`) → flashable zip `lucreticus-r1-Armaros-<device>-<profile>-<opt>[-ksu][-ds][-nm][-zen][-docker][-bypass][-dfsync][-burnin][-sgpu][-mboost][-busboost][-oc/-uv][-hz][-gpu*][-wg][-thinlto][-cache]-<sha>.zip` → artifact + single Telegram summary (`notify` job, `sendMessage` + per-zip `sendDocument`, guarded against empty artifact set).
 
 Secrets: `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` for `sendDocument`.
 

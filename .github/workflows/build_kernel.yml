@@ -88,14 +88,39 @@ on:
         default: false
         type: boolean
       bypass_charging:
-        description: 'Enable bypass charging? [EXPERIMENT]'
+        description: 'Enable bypass charging?'
         required: true
         default: false
         type: boolean
       docker:
-        description: 'Enable Docker/LXC support? [EXPERIMENT]'
+        description: 'Enable Docker/LXC support?'
         required: true
         default: true
+        type: boolean
+      dynamic_fsync:
+        description: 'Enable Boeffla-style dynamic fsync? [EXPERIMENTAL]'
+        required: true
+        default: false
+        type: boolean
+      burnin:
+        description: 'Enable burn-in protection profile? [EXPERIMENTAL]'
+        required: true
+        default: false
+        type: boolean
+      simple_gpu:
+        description: 'Enable Simple GPU Algorithm for Mali? [EXPERIMENTAL]'
+        required: true
+        default: false
+        type: boolean
+      mali_boost:
+        description: 'Enable AdrenoBoost-style Mali touch boost? [EXPERIMENTAL]'
+        required: true
+        default: false
+        type: boolean
+      mtk_bus_boost:
+        description: 'Enable MediaTek bus devfreq boost? [EXPERIMENTAL]'
+        required: true
+        default: false
         type: boolean
       clock:
         description: 'CPU clock mode [EXPERIMENT]'
@@ -189,7 +214,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: out
-          key: out-${{ matrix.device }}-${{ matrix.profile }}-${{ inputs.opt }}-${{ inputs.ksu }}-${{ inputs.lto }}-${{ inputs.zen }}-${{ inputs.aio_opt }}-${{ inputs.wireguard }}-${{ inputs.nosec }}-${{ inputs.nodebug }}-${{ hashFiles('arch/arm64/configs/**', 'drivers/**', 'kernel/**', 'fs/**', 'block/**', 'crypto/**', 'net/**') }}
+          key: out-${{ matrix.device }}-${{ matrix.profile }}-${{ inputs.opt }}-${{ inputs.ksu }}-${{ inputs.lto }}-${{ inputs.zen }}-${{ inputs.aio_opt }}-${{ inputs.wireguard }}-${{ inputs.nosec }}-${{ inputs.nodebug }}-${{ inputs.dynamic_fsync }}-${{ inputs.burnin }}-${{ inputs.simple_gpu }}-${{ inputs.mali_boost }}-${{ inputs.mtk_bus_boost }}-${{ hashFiles('arch/arm64/configs/**', 'drivers/**', 'kernel/**', 'fs/**', 'block/**', 'crypto/**', 'net/**') }}
           restore-keys: |
             out-${{ matrix.device }}-${{ matrix.profile }}-
 
@@ -338,6 +363,31 @@ jobs:
               --disable CONFIG_BRIDGE_VLAN_FILTERING \
               --disable CONFIG_BTRFS_FS
           fi
+          if [ "${{ inputs.dynamic_fsync }}" = "true" ]; then
+            scripts/config --file $CFGDIR/compiled_defconfig --enable CONFIG_DYNAMIC_FSYNC
+          else
+            scripts/config --file $CFGDIR/compiled_defconfig --disable CONFIG_DYNAMIC_FSYNC
+          fi
+          if [ "${{ inputs.burnin }}" = "true" ]; then
+            scripts/config --file $CFGDIR/compiled_defconfig --enable CONFIG_LUCRETICUS_BURNIN_PROTECTION
+          else
+            scripts/config --file $CFGDIR/compiled_defconfig --disable CONFIG_LUCRETICUS_BURNIN_PROTECTION
+          fi
+          if [ "${{ inputs.simple_gpu }}" = "true" ]; then
+            scripts/config --file $CFGDIR/compiled_defconfig --enable CONFIG_MTK_SIMPLE_GPU_ALGORITHM
+          else
+            scripts/config --file $CFGDIR/compiled_defconfig --disable CONFIG_MTK_SIMPLE_GPU_ALGORITHM
+          fi
+          if [ "${{ inputs.mali_boost }}" = "true" ]; then
+            scripts/config --file $CFGDIR/compiled_defconfig --enable CONFIG_MTK_MALI_BOOST
+          else
+            scripts/config --file $CFGDIR/compiled_defconfig --disable CONFIG_MTK_MALI_BOOST
+          fi
+          if [ "${{ inputs.mtk_bus_boost }}" = "true" ]; then
+            scripts/config --file $CFGDIR/compiled_defconfig --enable CONFIG_MTK_DEVFREQ_BUS_BOOST
+          else
+            scripts/config --file $CFGDIR/compiled_defconfig --disable CONFIG_MTK_DEVFREQ_BUS_BOOST
+          fi
           if [ "${{ inputs.clock }}" = "overclock" ]; then
             scripts/config --file $CFGDIR/compiled_defconfig \
               --enable CONFIG_LUCRETICUS_OC_GPU \
@@ -416,6 +466,21 @@ jobs:
           if [ "${{ inputs.docker }}" = "true" ]; then
             SUFFIX="$SUFFIX-docker"
           fi
+          if [ "${{ inputs.dynamic_fsync }}" = "true" ]; then
+            SUFFIX="$SUFFIX-dfsync"
+          fi
+          if [ "${{ inputs.burnin }}" = "true" ]; then
+            SUFFIX="$SUFFIX-burnin"
+          fi
+          if [ "${{ inputs.simple_gpu }}" = "true" ]; then
+            SUFFIX="$SUFFIX-sgpu"
+          fi
+          if [ "${{ inputs.mali_boost }}" = "true" ]; then
+            SUFFIX="$SUFFIX-mboost"
+          fi
+          if [ "${{ inputs.mtk_bus_boost }}" = "true" ]; then
+            SUFFIX="$SUFFIX-busboost"
+          fi
           if [ "${{ inputs.clock }}" = "overclock" ]; then
             SUFFIX="$SUFFIX-oc"
           elif [ "${{ inputs.clock }}" = "downclock" ]; then
@@ -479,6 +544,11 @@ jobs:
           if [ "${{ inputs.use_cache }}" = "true" ]; then CACHE_STATUS="yes"; else CACHE_STATUS="no"; fi
           if [ "${{ inputs.bypass_charging }}" = "true" ]; then BYPASS_STATUS="yes"; else BYPASS_STATUS="no"; fi
           if [ "${{ inputs.docker }}" = "true" ]; then DOCKER_STATUS="yes"; else DOCKER_STATUS="no"; fi
+          if [ "${{ inputs.dynamic_fsync }}" = "true" ]; then FSYNC_STATUS="yes"; else FSYNC_STATUS="no"; fi
+          if [ "${{ inputs.burnin }}" = "true" ]; then BURNIN_STATUS="yes"; else BURNIN_STATUS="no"; fi
+          if [ "${{ inputs.simple_gpu }}" = "true" ]; then SGPU_STATUS="yes"; else SGPU_STATUS="no"; fi
+          if [ "${{ inputs.mali_boost }}" = "true" ]; then MBOOST_STATUS="yes"; else MBOOST_STATUS="no"; fi
+          if [ "${{ inputs.mtk_bus_boost }}" = "true" ]; then BUS_STATUS="yes"; else BUS_STATUS="no"; fi
           CLOCK_STATUS="${{ inputs.clock }}"
           HZ_STATUS="${{ inputs.hz }}"
           GPU_CLOCK_STATUS="${{ inputs.gpu_clock }}"
@@ -494,7 +564,7 @@ jobs:
             LIST=$(printf '%s\n- %s %s — md5: %s' "$LIST" "$DEV" "$PROF" "$MD5")
             echo "$ZIP $MD5" >> files.txt
           done
-          TEXT=$(printf '<i>build successfully.</i>\n\nlucreticus kernel (%s builds)\n\nkernel version: 5.10.239 (spoofed)\nlucreticus patch version: r1-Armaros\n\ncompiler: ZyC Clang 14 -%s\nlto: %s\nkernelsu integrated: %s\ndroidspaces: %s\nnomount: %s\niosched: %s\naio optimized: %s\nwireguard: %s\nsamsung security: %s\ndebug: %s\ncache: %s\nbypass charging: %s\ndocker: %s\nclock: %s\ntick: %sHz\ngpu clock: %s\ncommit: %s\n%s' "$COUNT" "${{ inputs.opt }}" "${{ inputs.lto }}" "$KSU_STATUS" "$DS_STATUS" "$NM_STATUS" "$ZEN_STATUS" "$AIO_STATUS" "$WG_STATUS" "$SEC_STATUS" "$DBG_STATUS" "$CACHE_STATUS" "$BYPASS_STATUS" "$DOCKER_STATUS" "$CLOCK_STATUS" "$HZ_STATUS" "$GPU_CLOCK_STATUS" "${{ github.sha }}" "$LIST")
+          TEXT=$(printf '<i>build successfully.</i>\n\nlucreticus kernel (%s builds)\n\nkernel version: 5.10.239 (spoofed)\nlucreticus patch version: r1-Armaros\n\ncompiler: ZyC Clang 14 -%s\nlto: %s\nkernelsu integrated: %s\ndroidspaces: %s\nnomount: %s\niosched: %s\naio optimized: %s\nwireguard: %s\nsamsung security: %s\ndebug: %s\ncache: %s\nbypass charging: %s\ndocker: %s\ndynamic fsync: %s\nburn-in profile: %s\nsimple GPU: %s\nMali boost: %s\nMTK bus boost: %s\nclock: %s\ntick: %sHz\ngpu clock: %s\ncommit: %s\n%s' "$COUNT" "${{ inputs.opt }}" "${{ inputs.lto }}" "$KSU_STATUS" "$DS_STATUS" "$NM_STATUS" "$ZEN_STATUS" "$AIO_STATUS" "$WG_STATUS" "$SEC_STATUS" "$DBG_STATUS" "$CACHE_STATUS" "$BYPASS_STATUS" "$DOCKER_STATUS" "$FSYNC_STATUS" "$BURNIN_STATUS" "$SGPU_STATUS" "$MBOOST_STATUS" "$BUS_STATUS" "$CLOCK_STATUS" "$HZ_STATUS" "$GPU_CLOCK_STATUS" "${{ github.sha }}" "$LIST")
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             --data-urlencode "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
             --data-urlencode "parse_mode=HTML" \
