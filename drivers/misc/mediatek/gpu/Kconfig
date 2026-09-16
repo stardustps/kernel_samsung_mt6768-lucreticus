@@ -22,6 +22,23 @@ config MTK_GPU_COMMON_DVFS_SUPPORT
 	  It is nice method to save power.
 	  It is recommended to enable it when MTK_GPU_SUPPORT is enabled.
 
+config MTK_SIMPLE_GPU_ALGORITHM
+	bool "Simple GPU Algorithm for MediaTek Mali [EXPERIMENTAL]"
+	depends on MTK_GPU_SUPPORT && MTK_GPU_COMMON_DVFS_SUPPORT && MACH_MT6768
+	default n
+	help
+	  Bias GED's normal frequency requests up one OPP under high load and
+	  briefly hold a higher OPP to avoid oscillation. Thermal and power
+	  limits still take precedence.
+
+config MTK_MALI_BOOST
+	bool "Touch GPU boost for MediaTek Mali [EXPERIMENTAL]"
+	depends on MTK_GPU_SUPPORT && MTK_GPU_COMMON_DVFS_SUPPORT && MACH_MT6768
+	default n
+	help
+	  Adapt the AdrenoBoost idea to MediaTek's GED touch event. A runtime
+	  level controls the requested Mali OPP; thermal limits remain active.
+
 config MTK_GPU_OPP_STATS_SUPPORT
 	bool "Support GPU opp stat"
 	depends on MTK_GPU_COMMON_DVFS_SUPPORT

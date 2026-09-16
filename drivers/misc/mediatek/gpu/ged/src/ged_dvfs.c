@@ -17,6 +17,8 @@
 
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/jiffies.h>
+#include <linux/moduleparam.h>
 
 #include <mt-plat/mtk_boot.h>
 #ifdef MTK_GPU_DVFS
@@ -67,6 +69,20 @@ static unsigned int gpu_power;
 static unsigned int gpu_dvfs_enable;
 static unsigned int gpu_debug_enable;
 static unsigned int g_lb_down_count = 1;
+#ifdef CONFIG_MTK_SIMPLE_GPU_ALGORITHM
+static bool simple_gpu_enabled = true;
+static unsigned int simple_gpu_up_threshold = 80;
+static unsigned int simple_gpu_hold_ms = 80;
+static unsigned long simple_gpu_last_up;
+module_param_named(simple_gpu_enabled, simple_gpu_enabled, bool, 0644);
+module_param_named(simple_gpu_up_threshold, simple_gpu_up_threshold, uint, 0644);
+module_param_named(simple_gpu_hold_ms, simple_gpu_hold_ms, uint, 0644);
+#endif
+#ifdef CONFIG_MTK_MALI_BOOST
+/* 0 disables touch boost; 1, 2 and 3 request successively faster OPPs. */
+static unsigned int mali_boost_level = 2;
+module_param_named(mali_boost_level, mali_boost_level, uint, 0644);
+#endif
 #ifdef CONFIG_MTK_GPU_OPP_STATS_SUPPORT
 static struct GED_DVFS_OPP_STAT *g_aOppStat;
 static int g_num;
@@ -600,7 +616,25 @@ bool ged_dvfs_gpu_freq_commit(unsigned long ui32NewFreqID,
 				5566, 0, 0);
 		}
 
-		/* up bound */
+#ifdef CONFIG_MTK_SIMPLE_GPU_ALGORITHM
+		if (eCommitType == GED_DVFS_DEFAULT_COMMIT &&
+		    READ_ONCE(simple_gpu_enabled)) {
+			unsigned int threshold =
+				min(READ_ONCE(simple_gpu_up_threshold), 100U);
+			unsigned int loading = READ_ONCE(gpu_av_loading);
+
+			if (loading >= threshold && ui32NewFreqID > 0) {
+				ui32NewFreqID--;
+				simple_gpu_last_up = jiffies;
+			} else if (loading > 20 && ui32NewFreqID > ui32CurFreqID &&
+				   time_before(jiffies, simple_gpu_last_up +
+					msecs_to_jiffies(min(
+						READ_ONCE(simple_gpu_hold_ms), 500U)))) {
+				ui32NewFreqID = ui32CurFreqID;
+			}
+		}
+#endif
+		/* Apply customization and thermal ceilings after tuning. */
 		if (ui32NewFreqID < g_cust_upbound_freq_id) {
 			ui32NewFreqID = g_cust_upbound_freq_id;
 			g_CommitType = MTK_GPU_DVFS_TYPE_CUSTOMIZATION;
@@ -1509,7 +1543,11 @@ static void ged_dvfs_freq_input_boostCB(unsigned int ui32BoostFreqID)
 	if (g_iSkipCount > 0)
 		return;
 
-	if (boost_gpu_enable == 0)
+	if (boost_gpu_enable == 0
+#ifdef CONFIG_MTK_MALI_BOOST
+	    && READ_ONCE(mali_boost_level) == 0
+#endif
+	    )
 		return;
 
 	mutex_lock(&gsDVFSLock);
@@ -1550,10 +1588,21 @@ static void ged_dvfs_freq_thermal_limitCB(unsigned int ui32LimitFreqID)
 
 void ged_dvfs_boost_gpu_freq(void)
 {
+	unsigned int boost_idx = 0;
+
 	if (gpu_debug_enable)
 		GED_LOGE("%s", __func__);
 
-	ged_dvfs_freq_input_boostCB(0);
+#ifdef CONFIG_MTK_MALI_BOOST
+	if (READ_ONCE(mali_boost_level)) {
+		unsigned int table_size = mt_gpufreq_get_dvfs_table_num();
+		unsigned int level = min(READ_ONCE(mali_boost_level), 3U);
+
+		if (table_size)
+			boost_idx = (table_size - 1) * (3 - level) / 4;
+	}
+#endif
+	ged_dvfs_freq_input_boostCB(boost_idx);
 }
 
 static void ged_dvfs_set_bottom_gpu_freq(unsigned int ui32FreqLevel)
@@ -2413,4 +2462,3 @@ module_param(gpu_cust_upbound_freq, uint, 0644);
 module_param(g_gpu_timer_based_emu, uint, 0644);
 module_param(gpu_bw_err_debug, uint, 0644);
 #endif
-
