@@ -18,6 +18,11 @@
 #include <linux/pm_qos.h>
 #include <linux/notifier.h>
 #include <linux/fb.h>
+#ifdef CONFIG_MTK_BT_HCI_TRACE
+#define CREATE_TRACE_POINTS
+#include <trace/events/mtk_bt.h>
+#undef CREATE_TRACE_POINTS
+#endif
 
 MODULE_LICENSE("Dual BSD/GPL");
 
@@ -36,7 +41,11 @@ MODULE_LICENSE("Dual BSD/GPL");
 #define COMBO_IOCTL_BT_IC_HW_VER    _IOR(COMBO_IOC_MAGIC, 2, void*)
 #define COMBO_IOCTL_BT_IC_FW_VER    _IOR(COMBO_IOC_MAGIC, 3, void*)
 
+#ifdef CONFIG_MTK_BT_AUDIO_TRANSPORT
+#define BT_BUFFER_SIZE              4096
+#else
 #define BT_BUFFER_SIZE              2048
+#endif
 #define FTRACE_STR_LOG_SIZE         256
 #define REG_READL(addr) readl((volatile uint32_t *)(addr))
 
@@ -388,6 +397,10 @@ ssize_t BT_write_iter(struct kiocb *iocb, struct iov_iter *from)
 
 		BT_LOG_PRT_DBG_RAW(o_buf, count, "%s: len[%d], TX: ", __func__, count);
 		retval = __bt_write(o_buf, count);
+#ifdef CONFIG_MTK_BT_HCI_TRACE
+		if (retval > 0)
+			trace_mtk_bt_hci(true, o_buf, retval);
+#endif
 	}
 
 OUT:
@@ -424,6 +437,10 @@ ssize_t BT_write(struct file *filp, const char __user *buf, size_t count, loff_t
 
 		BT_LOG_PRT_DBG_RAW(o_buf, count, "%s: len[%d], TX: ", __func__, count);
 		retval = __bt_write(o_buf, count);
+#ifdef CONFIG_MTK_BT_HCI_TRACE
+		if (retval > 0)
+			trace_mtk_bt_hci(true, o_buf, retval);
+#endif
 	}
 
 OUT:
@@ -505,6 +522,9 @@ ssize_t BT_read(struct file *filp, char __user *buf, size_t count, loff_t *f_pos
 			}
 			//BT_LOG_PRT_DBG("Read bytes %d\n", retval);
 			BT_LOG_PRT_DBG_RAW(i_buf, retval, "%s: len[%d], RX: ", __func__, retval);
+#ifdef CONFIG_MTK_BT_HCI_TRACE
+			trace_mtk_bt_hci(false, i_buf, retval);
+#endif
 			break;
 		}
 	} while (!mtk_wcn_stp_is_rxqueue_empty(BT_TASK_INDX) && rstflag == 0);
