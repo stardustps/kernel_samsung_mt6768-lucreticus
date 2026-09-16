@@ -1,5 +1,14 @@
 if MTK_FB && !DRM_MEDIATEK && SMCDSD_PANEL
 
+config LUCRETICUS_BURNIN_PROTECTION
+	bool "Samsung OLED brightness protection profile [EXPERIMENTAL]"
+	depends on MTK_LCM && (SMCDSD_PANEL_A32 || SMCDSD_PANEL_A22 || SMCDSD_PANEL_M22 || SMCDSD_PANEL_M32)
+	default n
+	help
+	  Cap normal Samsung OLED panel brightness at a configurable level
+	  to reduce prolonged high-brightness pixel wear. Always-on display
+	  and the A32 fingerprint mask brightness retain their own paths.
+
 config SMCDSD_LCD_DEBUG
 	bool "Support LCD_DEBUG"
 	depends on DEBUG_FS
@@ -75,4 +84,3 @@ config SMCDSD_PANEL_A13VE
 	default n
 
 endif # MTK_FB && !DRM_MEDIATEK && SMCDSD_PANEL
-
