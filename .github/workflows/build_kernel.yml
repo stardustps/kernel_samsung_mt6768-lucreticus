@@ -439,14 +439,14 @@ jobs:
           elif [ "${{ inputs.lto }}" = "full" ]; then
             SUFFIX="$SUFFIX-fulllto"
           fi
-          zip -r9 ../lucreticus-lrc1-${{ env.DEVICE_CHOICE }}-$SUFFIX-${{ env.SHORT_SHA }}.zip * -x .git README.md *placeholder
-          ls -lh ../lucreticus-lrc1-*.zip
+          zip -r9 ../lucreticus-r1-Armaros-${{ env.DEVICE_CHOICE }}-$SUFFIX-${{ env.SHORT_SHA }}.zip * -x .git README.md *placeholder
+          ls -lh ../lucreticus-r1-Armaros-*.zip
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: lucreticus-lrc1-${{ env.DEVICE_CHOICE }}-${{ matrix.profile }}-${{ inputs.ksu && 'ksu' || 'standard' }}
-          path: lucreticus-lrc1-*.zip
+          name: lucreticus-r1-Armaros-${{ env.DEVICE_CHOICE }}-${{ matrix.profile }}-${{ inputs.ksu && 'ksu' || 'standard' }}
+          path: lucreticus-r1-Armaros-*.zip
 
   notify:
     name: Telegram summary
@@ -463,7 +463,7 @@ jobs:
         run: |
           cd builds
           shopt -s nullglob
-          ZIPS=(lucreticus-lrc1-*.zip)
+          ZIPS=(lucreticus-r1-Armaros-*.zip)
           if [ ${#ZIPS[@]} -eq 0 ]; then
             echo "error: no lucreticus zips downloaded, refusing to send an empty notification"
             exit 1
@@ -484,9 +484,9 @@ jobs:
           GPU_CLOCK_STATUS="${{ inputs.gpu_clock }}"
           LIST=""
           COUNT=0
-          for ZIP in lucreticus-lrc1-*.zip; do
+          for ZIP in lucreticus-r1-Armaros-*.zip; do
             MD5=$(md5sum "$ZIP" | cut -d ' ' -f 1)
-            REST=${ZIP#lucreticus-lrc1-}
+            REST=${ZIP#lucreticus-r1-Armaros-}
             DEV=${REST%%-*}
             REST2=${REST#*-}
             PROF=${REST2%%-*}
@@ -494,7 +494,7 @@ jobs:
             LIST=$(printf '%s\n- %s %s — md5: %s' "$LIST" "$DEV" "$PROF" "$MD5")
             echo "$ZIP $MD5" >> files.txt
           done
-          TEXT=$(printf '<i>build successfully.</i>\n\nlucreticus kernel (%s builds)\n\nkernel version: 5.10.239 (spoofed)\nlucreticus patch version: lrc1\n\ncompiler: ZyC Clang 14 -%s\nlto: %s\nkernelsu integrated: %s\ndroidspaces: %s\nnomount: %s\niosched: %s\naio optimized: %s\nwireguard: %s\nsamsung security: %s\ndebug: %s\ncache: %s\nbypass charging: %s\ndocker: %s\nclock: %s\ntick: %sHz\ngpu clock: %s\ncommit: %s\n%s' "$COUNT" "${{ inputs.opt }}" "${{ inputs.lto }}" "$KSU_STATUS" "$DS_STATUS" "$NM_STATUS" "$ZEN_STATUS" "$AIO_STATUS" "$WG_STATUS" "$SEC_STATUS" "$DBG_STATUS" "$CACHE_STATUS" "$BYPASS_STATUS" "$DOCKER_STATUS" "$CLOCK_STATUS" "$HZ_STATUS" "$GPU_CLOCK_STATUS" "${{ github.sha }}" "$LIST")
+          TEXT=$(printf '<i>build successfully.</i>\n\nlucreticus kernel (%s builds)\n\nkernel version: 5.10.239 (spoofed)\nlucreticus patch version: r1-Armaros\n\ncompiler: ZyC Clang 14 -%s\nlto: %s\nkernelsu integrated: %s\ndroidspaces: %s\nnomount: %s\niosched: %s\naio optimized: %s\nwireguard: %s\nsamsung security: %s\ndebug: %s\ncache: %s\nbypass charging: %s\ndocker: %s\nclock: %s\ntick: %sHz\ngpu clock: %s\ncommit: %s\n%s' "$COUNT" "${{ inputs.opt }}" "${{ inputs.lto }}" "$KSU_STATUS" "$DS_STATUS" "$NM_STATUS" "$ZEN_STATUS" "$AIO_STATUS" "$WG_STATUS" "$SEC_STATUS" "$DBG_STATUS" "$CACHE_STATUS" "$BYPASS_STATUS" "$DOCKER_STATUS" "$CLOCK_STATUS" "$HZ_STATUS" "$GPU_CLOCK_STATUS" "${{ github.sha }}" "$LIST")
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             --data-urlencode "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
             --data-urlencode "parse_mode=HTML" \

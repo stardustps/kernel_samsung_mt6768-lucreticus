@@ -1,6 +1,6 @@
 # kernel_samsung_mt6768-lucreticus
 
-Lucreticus kernel for Samsung Galaxy A32 (SM-A325F, MT6768 / MT6769) and siblings. Based on Samsung `4.14.357` (OpenELA `4.14.357-openela`), rebranded from slmkernel to **lucreticus `lrc1`** (`-rc1`, `CONFIG_LOCALVERSION="-lucreticus_rc1@dotarma"`, `uname -r` spoofed to `5.10.239`).
+Lucreticus kernel for Samsung Galaxy A32 (SM-A325F, MT6768 / MT6769) and siblings. Based on Samsung `4.14.357` (OpenELA `4.14.357-openela`), rebranded from slmkernel to **lucreticus `r1-Armaros`** (`-r1-Armaros`, `CONFIG_LOCALVERSION="-lucreticus_r1-Armaros@dotarma"`, `uname -r` spoofed to `5.10.239`).
 
 Source: `stardustps/kernel_samsung_mt6768-lucreticus` (`rc1` branch, fork of `Samsung-MT6769-Devs/android_kernel_samsung_mt6768`).
 
@@ -13,7 +13,7 @@ Source: `stardustps/kernel_samsung_mt6768-lucreticus` (`rc1` branch, fork of `Sa
 
 ## Features
 
-- **Rebrand** — `slmkernel` → `lucreticus` (`SLMKERNEL` → `LUCRETICUS`), `build_slmkernel.sh` → `build_lucreticus.sh`, `mt6768_slm_defconfig` → `mt6768_lucreticus_defconfig`, `CONFIG_LOCALVERSION`, `EXTRAVERSION=-rc1`.
+- **Rebrand** — `slmkernel` → `lucreticus` (`SLMKERNEL` → `LUCRETICUS`), `build_slmkernel.sh` → `build_lucreticus.sh`, `mt6768_slm_defconfig` → `mt6768_lucreticus_defconfig`, `CONFIG_LOCALVERSION`, `EXTRAVERSION=-r1-Armaros`.
 - **Nomount** — `fs/nomount.{c,h}` hides sensitive mountpoints from `/proc/{mounts,mountinfo,mountstats}` via `do_mount`/`do_umount` checks and `proc_namespace` filtering, `CONFIG_NOMOUNT=y`, toggle `/proc/nomount_enabled`.
 - **BBRv2** — backported from `DPR-KernelArchive/sweetie_star_kernel_xiaomi_sweet` (`sixteen-qpr1`, `RainyXeon <rainyxeon@gmail.com>`), keeps BBRv1 in `tcp_bbr.c` and adds BBRv2 as `tcp_bbr2.c` (`TCP_CONG_BBR2`, `DEFAULT_BBR2`), `CONFIG_TCP_CONG_BBR2=y`.
 - **KernelSU v2.3** — scope-minimized manual hooks in `fs/exec.c:do_execveat_common`, `fs/open.c:faccessat`, `fs/stat.c:newfstatat`/`newfstat` ret hooks, `read_write.c` left unhooked (LSM migration).
@@ -109,7 +109,7 @@ WireGuard (if enabled in CI): `git clone --depth 1 https://github.com/WireGuard/
 - `gpu_clock` — `stock/overclock/downclock/max` (`LUCRETICUS_OC_GPU`)
 - `nosec` / `nodebug` / `use_cache` — experimentals
 
-Build does: deps → ZyC Clang 14 → optional KernelSU/WireGuard → merge defconfigs → `scripts/config` toggles → `make compiled_defconfig` → `make -s -C out -j$(nproc)` → `stardustps/sta7dust` (`Image`→`Image.gz`) → flashable zip `lucreticus-lrc1-<device>-<profile>-<opt>[-ksu][-ds][-nm][-zen][-docker][-bypass][-oc/-uv][-hz][-gpu*][-wg][-thinlto][-cache]-<sha>.zip` → artifact + single Telegram summary (`notify` job, `sendMessage` + per-zip `sendDocument`, guarded against empty artifact set).
+Build does: deps → ZyC Clang 14 → optional KernelSU/WireGuard → merge defconfigs → `scripts/config` toggles → `make compiled_defconfig` → `make -s -C out -j$(nproc)` → `stardustps/sta7dust` (`Image`→`Image.gz`) → flashable zip `lucreticus-r1-Armaros-<device>-<profile>-<opt>[-ksu][-ds][-nm][-zen][-docker][-bypass][-oc/-uv][-hz][-gpu*][-wg][-thinlto][-cache]-<sha>.zip` → artifact + single Telegram summary (`notify` job, `sendMessage` + per-zip `sendDocument`, guarded against empty artifact set).
 
 Secrets: `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` for `sendDocument`.
 
