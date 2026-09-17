@@ -20,16 +20,11 @@ on:
         required: true
         default: false
         type: boolean
-      profile:
-        description: 'Tuning profile (perf, balance, battery, or all)'
+      sched_bore:
+        description: 'Enable BORE scheduler tuning? [EXPERIMENTAL]'
         required: true
-        default: 'all'
-        type: choice
-        options:
-          - perf
-          - balance
-          - battery
-          - all
+        default: false
+        type: boolean
       opt:
         description: 'Compiler optimization level'
         required: true
@@ -167,12 +162,11 @@ permissions:
 
 jobs:
   setup:
-    name: Resolve matrix
+    name: Resolve devices
     runs-on: ubuntu-latest
     env:
       EXPERIMENTAL_FEATURES: ${{ inputs.experimental_features }}
     outputs:
-      profiles: ${{ steps.set.outputs.profiles }}
       devices: ${{ steps.set.outputs.devices }}
     steps:
       - id: set
@@ -184,11 +178,6 @@ jobs:
               *) echo "Unknown experimental feature: $FLAG"; exit 1 ;;
             esac
           done
-          if [ "${{ inputs.profile }}" = "all" ]; then
-            echo 'profiles=["perf", "balance", "battery"]' >> $GITHUB_OUTPUT
-          else
-            echo "profiles=[\"${{ inputs.profile }}\"]" >> $GITHUB_OUTPUT
-          fi
           if [ "${{ inputs.device }}" = "all" ]; then
             echo 'devices=["a32", "a22", "f22", "m22", "m32"]' >> $GITHUB_OUTPUT
           else
@@ -196,18 +185,16 @@ jobs:
           fi
 
   build:
-    name: Build Kernel ${{ matrix.device }} ${{ matrix.profile }} ${{ inputs.opt }} ${{ inputs.ksu && 'with KernelSU' || 'standard' }}
+    name: Build Kernel ${{ matrix.device }} ${{ inputs.opt }} ${{ inputs.ksu && 'with KernelSU' || 'standard' }}
     needs: setup
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        profile: ${{ fromJSON(needs.setup.outputs.profiles) }}
         device: ${{ fromJSON(needs.setup.outputs.devices) }}
 
     env:
       DEVICE_CHOICE: ${{ matrix.device }}
       KSU_CHOICE: ${{ inputs.ksu }}
-      PROFILE_CHOICE: ${{ matrix.profile }}
       EXPERIMENTAL_FEATURES: ${{ inputs.experimental_features }}
 
     steps:
@@ -234,7 +221,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: out
-          key: out-${{ github.sha }}-${{ matrix.device }}-${{ matrix.profile }}-${{ inputs.opt }}-${{ inputs.ksu }}-${{ inputs.lto }}-${{ inputs.zen }}-${{ inputs.aio_opt }}-${{ inputs.wireguard }}-${{ inputs.nosec }}-${{ inputs.nodebug }}-${{ inputs.droidspaces }}-${{ inputs.nomount }}-${{ inputs.bypass_charging }}-${{ inputs.docker }}-${{ inputs.dynamic_fsync }}-${{ inputs.burnin }}-${{ inputs.simple_gpu }}-${{ inputs.mali_boost }}-${{ inputs.mtk_bus_boost }}-${{ inputs.fast_charge }}-${{ contains(inputs.experimental_features, 'sched_tuning') }}-${{ contains(inputs.experimental_features, 'audio_jack_ir') }}-${{ contains(inputs.experimental_features, 'bt_hci_snoop') }}-${{ contains(inputs.experimental_features, 'bt_audio_transport') }}-${{ contains(inputs.experimental_features, 'wowlan_keepalive') }}-${{ inputs.clock }}-${{ inputs.hz }}-${{ inputs.gpu_clock }}
+          key: out-${{ github.sha }}-${{ matrix.device }}-${{ inputs.opt }}-${{ inputs.ksu }}-${{ inputs.lto }}-${{ inputs.zen }}-${{ inputs.aio_opt }}-${{ inputs.wireguard }}-${{ inputs.nosec }}-${{ inputs.nodebug }}-${{ inputs.droidspaces }}-${{ inputs.nomount }}-${{ inputs.bypass_charging }}-${{ inputs.docker }}-${{ inputs.dynamic_fsync }}-${{ inputs.burnin }}-${{ inputs.simple_gpu }}-${{ inputs.mali_boost }}-${{ inputs.mtk_bus_boost }}-${{ inputs.fast_charge }}-${{ contains(inputs.experimental_features, 'sched_tuning') }}-${{ contains(inputs.experimental_features, 'audio_jack_ir') }}-${{ contains(inputs.experimental_features, 'bt_hci_snoop') }}-${{ contains(inputs.experimental_features, 'bt_audio_transport') }}-${{ contains(inputs.experimental_features, 'wowlan_keepalive') }}-${{ inputs.clock }}-${{ inputs.hz }}-${{ inputs.gpu_clock }}-${{ inputs.sched_bore }}
 
       - name: Setup KernelSU
         if: ${{ inputs.ksu }}
@@ -282,32 +269,16 @@ jobs:
           }
           rm -f $CFGDIR/compiled_defconfig
           cat $CFGDIR/mt6768_lucreticus_defconfig $CFGDIR/${{ env.DEVICE_CHOICE }}.config > $CFGDIR/compiled_defconfig
-          if [ "${{ matrix.profile }}" != "balance" ]; then
-            cat $CFGDIR/${{ matrix.profile }}.config >> $CFGDIR/compiled_defconfig
+          scripts/config --file $CFGDIR/compiled_defconfig \
+            --enable CONFIG_CPU_FREQ_GOV_LUCRETI \
+            --enable CONFIG_CPU_FREQ_DEFAULT_GOV_LUCRETIBALANCE \
+            --disable CONFIG_CPU_FREQ_DEFAULT_GOV_LUCRETIPERF \
+            --disable CONFIG_CPU_FREQ_DEFAULT_GOV_LUCRETIBATTERY
+          if [ "${{ inputs.sched_bore }}" = "true" ]; then
+            scripts/config --file $CFGDIR/compiled_defconfig --enable CONFIG_SCHED_BORE
+          else
+            scripts/config --file $CFGDIR/compiled_defconfig --disable CONFIG_SCHED_BORE
           fi
-          case "${{ matrix.profile }}" in
-            perf)
-              scripts/config --file $CFGDIR/compiled_defconfig \
-                --enable CONFIG_CPU_FREQ_GOV_LUCRETI \
-                --enable CONFIG_CPU_FREQ_DEFAULT_GOV_LUCRETIPERF \
-                --disable CONFIG_CPU_FREQ_DEFAULT_GOV_LUCRETIBALANCE \
-                --disable CONFIG_CPU_FREQ_DEFAULT_GOV_LUCRETIBATTERY
-              ;;
-            battery)
-              scripts/config --file $CFGDIR/compiled_defconfig \
-                --enable CONFIG_CPU_FREQ_GOV_LUCRETI \
-                --enable CONFIG_CPU_FREQ_DEFAULT_GOV_LUCRETIBATTERY \
-                --disable CONFIG_CPU_FREQ_DEFAULT_GOV_LUCRETIBALANCE \
-                --disable CONFIG_CPU_FREQ_DEFAULT_GOV_LUCRETIPERF
-              ;;
-            balance)
-              scripts/config --file $CFGDIR/compiled_defconfig \
-                --enable CONFIG_CPU_FREQ_GOV_LUCRETI \
-                --enable CONFIG_CPU_FREQ_DEFAULT_GOV_LUCRETIBALANCE \
-                --disable CONFIG_CPU_FREQ_DEFAULT_GOV_LUCRETIPERF \
-                --disable CONFIG_CPU_FREQ_DEFAULT_GOV_LUCRETIBATTERY
-              ;;
-          esac
           if [ "${{ inputs.ksu }}" = "true" ]; then
             cat $CFGDIR/ksu.config >> $CFGDIR/compiled_defconfig
           fi
@@ -511,11 +482,8 @@ jobs:
             exit 1
           }
           require_config CONFIG_CPU_FREQ_GOV_LUCRETI
-          case "${{ matrix.profile }}" in
-            perf) require_config CONFIG_CPU_FREQ_DEFAULT_GOV_LUCRETIPERF ;;
-            balance) require_config CONFIG_CPU_FREQ_DEFAULT_GOV_LUCRETIBALANCE ;;
-            battery) require_config CONFIG_CPU_FREQ_DEFAULT_GOV_LUCRETIBATTERY ;;
-          esac
+          require_config CONFIG_CPU_FREQ_DEFAULT_GOV_LUCRETIBALANCE
+          if [ "${{ inputs.sched_bore }}" = "true" ]; then require_config CONFIG_SCHED_BORE; fi
           if [ "${{ inputs.ksu }}" = "true" ] && grep -Fqx 'CONFIG_KSU_SUSFS=y' out/.config; then
             echo 'SUSFS inline hook mode must be disabled'
             exit 1
@@ -563,7 +531,10 @@ jobs:
               *) return 1 ;;
             esac
           }
-          SUFFIX="${{ matrix.profile }}-${{ inputs.opt }}"
+          SUFFIX="${{ inputs.opt }}"
+          if [ "${{ inputs.sched_bore }}" = "true" ]; then
+            SUFFIX="$SUFFIX-bore"
+          fi
           if [ "${{ inputs.ksu }}" = "true" ]; then
             SUFFIX="$SUFFIX-ksu"
           fi
@@ -650,7 +621,7 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: lucreticus-r1-Armaros-${{ env.DEVICE_CHOICE }}-${{ matrix.profile }}-${{ inputs.ksu && 'ksu' || 'standard' }}
+          name: lucreticus-r1-Armaros-${{ env.DEVICE_CHOICE }}-${{ inputs.ksu && 'ksu' || 'standard' }}
           path: lucreticus-r1-Armaros-*.zip
 
   notify:
@@ -703,6 +674,7 @@ jobs:
           if has_feature bt_hci_snoop; then BT_TRACE_STATUS="yes"; else BT_TRACE_STATUS="no"; fi
           if has_feature bt_audio_transport; then BT_BUF_STATUS="yes"; else BT_BUF_STATUS="no"; fi
           if has_feature wowlan_keepalive; then WOWLAN_STATUS="yes"; else WOWLAN_STATUS="no"; fi
+          if [ "${{ inputs.sched_bore }}" = "true" ]; then BORE_STATUS="yes"; else BORE_STATUS="no"; fi
           CLOCK_STATUS="${{ inputs.clock }}"
           HZ_STATUS="${{ inputs.hz }}"
           GPU_CLOCK_STATUS="${{ inputs.gpu_clock }}"
@@ -712,14 +684,12 @@ jobs:
             MD5=$(md5sum "$ZIP" | cut -d ' ' -f 1)
             REST=${ZIP#lucreticus-r1-Armaros-}
             DEV=${REST%%-*}
-            REST2=${REST#*-}
-            PROF=${REST2%%-*}
             COUNT=$((COUNT + 1))
-            LIST=$(printf '%s\n- %s %s — md5: %s' "$LIST" "$DEV" "$PROF" "$MD5")
+            LIST=$(printf '%s\n- %s — md5: %s' "$LIST" "$DEV" "$MD5")
             echo "$ZIP $MD5" >> files.txt
           done
           TEXT=$(printf '<i>build successfully.</i>\n\nlucreticus kernel (%s builds)\n\nkernel version: 5.10.239 (spoofed)\nlucreticus patch version: r1-Armaros\n\ncompiler: ZyC Clang 14 -%s\nlto: %s\nkernelsu integrated: %s\ndroidspaces: %s\nnomount: %s\niosched: %s\naio optimized: %s\nwireguard: %s\nsamsung security: %s\ndebug: %s\ncache: %s\nbypass charging: %s\ndocker: %s\ndynamic fsync: %s\nburn-in profile: %s\nsimple GPU: %s\nMali boost: %s\nMTK bus boost: %s\nclock: %s\ntick: %sHz\ngpu clock: %s\ncommit: %s\n%s' "$COUNT" "${{ inputs.opt }}" "${{ inputs.lto }}" "$KSU_STATUS" "$DS_STATUS" "$NM_STATUS" "$ZEN_STATUS" "$AIO_STATUS" "$WG_STATUS" "$SEC_STATUS" "$DBG_STATUS" "$CACHE_STATUS" "$BYPASS_STATUS" "$DOCKER_STATUS" "$FSYNC_STATUS" "$BURNIN_STATUS" "$SGPU_STATUS" "$MBOOST_STATUS" "$BUS_STATUS" "$CLOCK_STATUS" "$HZ_STATUS" "$GPU_CLOCK_STATUS" "${{ github.sha }}" "$LIST")
-          TEXT=$(printf '%s\nscheduler tuning: %s\nfast-charge profile: %s\naudio-jack IR tool: %s\nBT HCI trace: %s\nBT transport buffer: %s\nWoWLAN retention: %s' "$TEXT" "$STUNE_STATUS" "$CHARGE_STATUS" "$IR_STATUS" "$BT_TRACE_STATUS" "$BT_BUF_STATUS" "$WOWLAN_STATUS")
+          TEXT=$(printf '%s\nBORE scheduler: %s\nscheduler tuning: %s\nfast-charge profile: %s\naudio-jack IR tool: %s\nBT HCI trace: %s\nBT transport buffer: %s\nWoWLAN retention: %s' "$TEXT" "$BORE_STATUS" "$STUNE_STATUS" "$CHARGE_STATUS" "$IR_STATUS" "$BT_TRACE_STATUS" "$BT_BUF_STATUS" "$WOWLAN_STATUS")
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             --data-urlencode "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
             --data-urlencode "parse_mode=HTML" \

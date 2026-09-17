@@ -38,10 +38,8 @@ case "$choice" in
   * ) echo "u made a typo or $choice not supported yet srry 💩" && exit;;
 esac
 
-#edit perf.config to battery.config to disable perf tweaks, dont use them at the same time!
 #add $CFGDIR/ksu.config at the end before ">" for ksu integration(optional)
-#example: build m22 battery life oriented karnal with ksu: $CFGDIR/mt6768_lucreticus_defconfig $CFGDIR/"$DEVICE".config $CFGDIR/battery.config $CFGDIR/ksu.config
-cat $CFGDIR/mt6768_lucreticus_defconfig $CFGDIR/"$DEVICE".config $CFGDIR/battery.config > $CFGDIR/compiled_defconfig
+cat $CFGDIR/mt6768_lucreticus_defconfig $CFGDIR/"$DEVICE".config > $CFGDIR/compiled_defconfig
 
 #selinux and gpu driver control
 #buildable: mali bifrost r25p0, mali valhall r32p1, mali avalon r49p1[WIP]

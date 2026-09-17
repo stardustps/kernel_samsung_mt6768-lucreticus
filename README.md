@@ -9,7 +9,7 @@ Source: `stardustps/kernel_samsung_mt6768-lucreticus` (`rc1` branch, fork of `Sa
 - `a32` — Galaxy A32 (k69v1_64_titan_marmot)
 - `a22` — Galaxy A22 (k69v1_64_titan_buffalo)
 - `f22` / `m22` / `m32` — experimental, same SoC family
-- Common base: `arch/arm64/configs/mt6768_lucreticus_defconfig` + `a32.config` / `a22.config` / `f22.config` / `m22.config` / `m32.config` + `perf.config` / `battery.config` merged to `compiled_defconfig` at build time.
+- Common base: `arch/arm64/configs/mt6768_lucreticus_defconfig` + one device config (`a32.config`, `a22.config`, `f22.config`, `m22.config`, or `m32.config`) merged to `compiled_defconfig` at build time.
 
 ## Features
 
@@ -20,7 +20,7 @@ Source: `stardustps/kernel_samsung_mt6768-lucreticus` (`rc1` branch, fork of `Sa
 - **Uname spoof** — `Makefile:KERNELVERSION = 5.10.239` so userspace `uname -r` reports `5.10.239` (spoofed), internal `VERSION/PATCHLEVEL/SUBLEVEL/EXTRAVERSION` kept for module deps.
 - **Droidspaces** — container prerequisites enabled in base defconfig: `SYSVIPC, POSIX_MQUEUE, IPC_NS, USER_NS, CGROUP_NET_PRIO, DEVTMPFS, TMPFS_POSIX_ACL/XATTR, NF_TABLES, NETFILTER_XT_MATCH_ADDRTYPE`.
 - **Aigis** — VoLTE IPv6 `ip6_output` cork fix retained, Mali Valhall `r32p1` pinned (`CONFIG_MTK_GPU_VERSION="mali valhall r32p1"`).
-- **Lucreti CPUFreq governors** — `lucretiperf`, `lucretibalance`, and `lucretibattery` are available in every profile. They scale CPU frequency from policy-limited CPU load with progressively lower frequency targets and longer sampling intervals. The `perf`, `balance`, and `battery` builds select the matching default governor. Switch a CPU policy at runtime through its `scaling_governor` sysfs file; GPU clocks, voltage tables, scheduler options, and tick rate remain build-time profile settings. Android userspace may override the default governor during boot.
+- **Lucreti CPUFreq governors** — One kernel includes `lucretiperf`, `lucretibalance`, and `lucretibattery`, with `lucretibalance` as the default. They scale CPU frequency from policy-limited CPU load with progressively lower frequency targets and longer sampling intervals. Select a governor for each CPU policy in a kernel manager or through its `scaling_governor` sysfs file. GPU clocks, voltage tables, scheduler options, and tick rate are still chosen at build time. Android userspace may override the default governor during boot.
 - **Zen I/O scheduler** — `block/zen-iosched.c` (FCFS + deadlines, `sync_expire=HZ/2`, `async_expire=5*HZ`), `IOSCHED_ZEN` / `DEFAULT_ZEN`.
 - **Dynamic fsync (experimental)** — defers writable regular-file `fsync`/`fdatasync` while the display is on, then schedules a sync five seconds after the first deferral, at display blank, and at suspend. It is controlled by `CONFIG_DYNAMIC_FSYNC` and the kernel-manager-compatible `/sys/kernel/dyn_fsync/Dyn_fsync_active`. A crash before the next sync can lose recent writes.
 - **OLED burn-in profile (experimental)** — caps normal brightness on the A32/A22/M22/M32 Samsung OLED panels (including F22 through its M22 config) at level 220 by default (`CONFIG_LUCRETICUS_BURNIN_PROTECTION`). AOD and the A32 fingerprint mask path are left to the panel driver. Runtime parameters are `/sys/module/lucreticus_burnin/parameters/enabled` and `max_level` (1–255); changes take effect on the next brightness update.
@@ -36,7 +36,7 @@ Source: `stardustps/kernel_samsung_mt6768-lucreticus` (`rc1` branch, fork of `Sa
 - **WireGuard** — `wireguard-linux-compat` via `kernel-tree-scripts/jury-rig.sh` at build time, `CONFIG_WIREGUARD` + `NET_UDP_TUNNEL/DST_CACHE/CRYPTO_ALGAPI`, compat `__kernel_timespec` guarded for this tree's `time64.h` backport.
 - **Docker/LXC** — `CFS_BANDWIDTH, CGROUP_HUGETLB, NET_CLS_CGROUP, MACVLAN, VXLAN, BRIDGE_VLAN_FILTERING, BTRFS_FS`.
 - **LTO** — `LTO_CLANG` + `THINLTO` (`-flto=thin`, `--thinlto-cache-dir`) or full (`-flto`), `LD_FLAGS_LTO_CLANG=-mllvm -import-instr-limit=5`.
-- **Clocks / Tick** — `LUCRETICUS_OC_GPU/CCI/RAMDVFS` vs `LUCRETICUS_UV`, `CONFIG_HZ` (`100/250/300/1000`), `SCHED_BORE` via `perf.config`.
+- **Clocks / Tick** — workflow controls for `LUCRETICUS_OC_GPU/CCI/RAMDVFS` vs `LUCRETICUS_UV`, `CONFIG_HZ` (`100/250/300/1000`), and optional `SCHED_BORE`.
 - **Security / Debug strip** — `TZDEV/TEGRIS` and leaf debug (`DYNAMIC_DEBUG, DEBUG_INFO, SCHED_DEBUG, DEBUG_LIST, FTRACE, MAGIC_SYSRQ, KALLSYMS_ALL`) toggles, `SCHED_DEBUG/DEBUG_LIST/MAGIC_SYSRQ` force-selected by `mediatek/Kconfig.default` and survive stripping.
 - **CVE backports** — `algif_aead` Copy Fail `CVE-2026-31431` (out-of-place), `raw_send_hdrinc` `CVE-2026-64114` (`ihl<5`), `esp4/esp6` Dirty Frag `CVE-2026-43284` (`SKBTX_SHARED_FRAG` / `skb_cow_data` fallback), `netprio` `css->id` vs removed `cgroup->id`.
 - **Netprio fix** — `task_netprioidx` / `netprio_cgroup` use `css->id`.
@@ -74,20 +74,19 @@ sudo apt install -y \
 ```bash
 ./build_lucreticus.sh
 # prompts: a32/a22/f22/m22/m32, then merges
-# mt6768_lucreticus_defconfig + <device>.config + battery.config
+# mt6768_lucreticus_defconfig + <device>.config
 # appends: # CONFIG_ALWAYS_ENFORCE is not set, CONFIG_ALWAYS_PERMISSIVE=y,
 #          CONFIG_MTK_GPU_VERSION="mali valhall r32p1"
 # runs: make O=out compiled_defconfig && make -j$(nproc) -C out
 ```
 
-Edit the script to use `perf.config` for OC or add `ksu.config` for KernelSU.
+The script uses `lucretibalance` by default and includes all three Lucreti governors. Add `ksu.config` to the merged config for KernelSU.
 
 ### Manual
 
 ```bash
 export CFGDIR=arch/arm64/configs
 cat $CFGDIR/mt6768_lucreticus_defconfig $CFGDIR/a32.config > $CFGDIR/compiled_defconfig
-# optional: cat $CFGDIR/perf.config >> $CFGDIR/compiled_defconfig
 # optional: cat $CFGDIR/ksu.config >> $CFGDIR/compiled_defconfig  # after KernelSU setup.sh
 # optional toggles via scripts/config:
 # scripts/config --file $CFGDIR/compiled_defconfig --enable CONFIG_IOSCHED_ZEN
@@ -110,19 +109,20 @@ WireGuard (if enabled in CI): `git clone --depth 1 https://github.com/WireGuard/
 
 - `device` — `a32/a22/f22/m22/m32/all` (matrix fans out across devices)
 - `ksu` — add KernelSU
-- `profile` — `perf/balance/battery/all` selects default `lucretiperf` / `lucretibalance` / `lucretibattery` respectively; the separate `clock` and `hz` inputs override clock and tick settings from the profile fragments
+- One build per selected device includes all three Lucreti CPUFreq governors; `lucretibalance` is the default, and a kernel manager can select the others at runtime
 - `opt` — `O2/O3` (`KCFLAGS/KCPPFLAGS`)
 - `droidspaces` / `nomount` / `zen` / `aio_opt` / `wireguard` / `docker` / `bypass_charging`
 - `lto` — `none/thin/full`
 - `clock` — `stock/overclock/downclock` (`LUCRETICUS_OC_*` / `UV`)
 - `hz` — `100/250/300/1000` (`CONFIG_HZ`)
 - `gpu_clock` — `stock/overclock/downclock/max` (`LUCRETICUS_OC_GPU`)
+- `sched_bore` — enable BORE scheduler tuning at build time, off by default
 - `nosec` / `nodebug` / `use_cache` — experimentals
 - `dynamic_fsync` / `burnin` / `simple_gpu` / `mali_boost` / `mtk_bus_boost` — independent experimental feature toggles, off by default
 - `fast_charge` — high-current PD / 9 V QC-AFC profile switch, off by default
 - `experimental_features` — comma-separated independent flags, with no spaces: `sched_tuning`, `audio_jack_ir`, `bt_hci_snoop`, `bt_audio_transport`, `wowlan_keepalive`. Leave blank to disable all. For example, `sched_tuning,bt_hci_snoop` enables those two only. This shared input keeps the workflow within GitHub's 25-input limit. The workflow checks the generated kernel config and fails if an enabled option is unavailable; cache reuse requires the same source revision and effective feature set.
 
-Build does: deps → ZyC Clang 14 → optional KernelSU/WireGuard → merge defconfigs → `scripts/config` toggles → `make compiled_defconfig` → `make -s -C out -j$(nproc)` → `stardustps/sta7dust` (`Image`→`Image.gz`) → flashable zip `lucreticus-r1-Armaros-<device>-<profile>-<opt>[-ksu][-ds][-nm][-zen][-docker][-bypass][-dfsync][-burnin][-sgpu][-mboost][-busboost][-stune][-fastchg][-irjack][-bttrace][-btbuf][-wowlan][-oc/-uv][-hz][-gpu*][-wg][-thinlto][-cache]-<sha>.zip` → artifact + single Telegram summary (`notify` job, `sendMessage` + per-zip `sendDocument`, guarded against empty artifact set).
+Build does: deps → ZyC Clang 14 → optional KernelSU/WireGuard → merge defconfigs → `scripts/config` toggles → `make compiled_defconfig` → `make -s -C out -j$(nproc)` → `stardustps/sta7dust` (`Image`→`Image.gz`) → flashable zip `lucreticus-r1-Armaros-<device>-<opt>[-bore][-ksu][-ds][-nm][-zen][-docker][-bypass][-dfsync][-burnin][-sgpu][-mboost][-busboost][-stune][-fastchg][-irjack][-bttrace][-btbuf][-wowlan][-oc/-uv][-hz][-gpu*][-wg][-thinlto][-cache]-<sha>.zip` → artifact + single Telegram summary (`notify` job, `sendMessage` + per-zip `sendDocument`, guarded against empty artifact set).
 
 Secrets: `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` for `sendDocument`.
 
