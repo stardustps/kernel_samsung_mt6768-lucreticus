@@ -239,7 +239,7 @@ jobs:
       - name: Setup KernelSU
         if: ${{ inputs.ksu }}
         run: |
-          curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s builtin
+          curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash
           echo "CONFIG_KSU=y" > $GITHUB_WORKSPACE/arch/arm64/configs/ksu.config
           echo "CONFIG_KSU_MANUAL_HOOK=y" >> $GITHUB_WORKSPACE/arch/arm64/configs/ksu.config
           echo "# CONFIG_KSU_SUSFS is not set" >> $GITHUB_WORKSPACE/arch/arm64/configs/ksu.config
