@@ -128,7 +128,7 @@ on:
         default: false
         type: boolean
       experimental_features:
-        description: 'Comma list: sched_tuning,audio_jack_ir,bt_hci_snoop,bt_audio_transport,wowlan_keepalive [EXPERIMENTAL]'
+        description: 'Comma list, no spaces: sched_tuning,audio_jack_ir,bt_hci_snoop,bt_audio_transport,wowlan_keepalive [EXPERIMENTAL]'
         required: false
         default: ''
         type: string
@@ -234,9 +234,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: out
-          key: out-${{ matrix.device }}-${{ matrix.profile }}-${{ inputs.opt }}-${{ inputs.ksu }}-${{ inputs.lto }}-${{ inputs.zen }}-${{ inputs.aio_opt }}-${{ inputs.wireguard }}-${{ inputs.nosec }}-${{ inputs.nodebug }}-${{ inputs.dynamic_fsync }}-${{ inputs.burnin }}-${{ inputs.simple_gpu }}-${{ inputs.mali_boost }}-${{ inputs.mtk_bus_boost }}-${{ inputs.fast_charge }}-${{ inputs.experimental_features }}-${{ hashFiles('arch/arm64/configs/**', 'drivers/**', 'kernel/**', 'fs/**', 'block/**', 'crypto/**', 'net/**') }}
-          restore-keys: |
-            out-${{ matrix.device }}-${{ matrix.profile }}-
+          key: out-${{ github.sha }}-${{ matrix.device }}-${{ matrix.profile }}-${{ inputs.opt }}-${{ inputs.ksu }}-${{ inputs.lto }}-${{ inputs.zen }}-${{ inputs.aio_opt }}-${{ inputs.wireguard }}-${{ inputs.nosec }}-${{ inputs.nodebug }}-${{ inputs.droidspaces }}-${{ inputs.nomount }}-${{ inputs.bypass_charging }}-${{ inputs.docker }}-${{ inputs.dynamic_fsync }}-${{ inputs.burnin }}-${{ inputs.simple_gpu }}-${{ inputs.mali_boost }}-${{ inputs.mtk_bus_boost }}-${{ inputs.fast_charge }}-${{ contains(inputs.experimental_features, 'sched_tuning') }}-${{ contains(inputs.experimental_features, 'audio_jack_ir') }}-${{ contains(inputs.experimental_features, 'bt_hci_snoop') }}-${{ contains(inputs.experimental_features, 'bt_audio_transport') }}-${{ contains(inputs.experimental_features, 'wowlan_keepalive') }}-${{ inputs.clock }}-${{ inputs.hz }}-${{ inputs.gpu_clock }}
 
       - name: Setup KernelSU
         if: ${{ inputs.ksu }}
@@ -478,6 +476,26 @@ jobs:
           echo 'CONFIG_ALWAYS_PERMISSIVE=y' >> $CFGDIR/compiled_defconfig
           echo 'CONFIG_MTK_GPU_VERSION="mali valhall r32p1"' >> $CFGDIR/compiled_defconfig
           make -C $(pwd) O=$(pwd)/out -j$(nproc) compiled_defconfig
+          require_config() {
+            if ! grep -Fqx "$1=y" out/.config; then
+              echo "Requested kernel feature $1 is unavailable for this configuration"
+              exit 1
+            fi
+          }
+          grep -Fqx 'CONFIG_MTK_GPU_VERSION="mali valhall r32p1"' out/.config || {
+            echo 'Mali Valhall r32p1 was not selected'
+            exit 1
+          }
+          if [ "${{ inputs.dynamic_fsync }}" = "true" ]; then require_config CONFIG_DYNAMIC_FSYNC; fi
+          if [ "${{ inputs.burnin }}" = "true" ]; then require_config CONFIG_LUCRETICUS_BURNIN_PROTECTION; fi
+          if [ "${{ inputs.simple_gpu }}" = "true" ]; then require_config CONFIG_MTK_SIMPLE_GPU_ALGORITHM; fi
+          if [ "${{ inputs.mali_boost }}" = "true" ]; then require_config CONFIG_MTK_MALI_BOOST; fi
+          if [ "${{ inputs.mtk_bus_boost }}" = "true" ]; then require_config CONFIG_MTK_DEVFREQ_BUS_BOOST; fi
+          if has_feature sched_tuning; then require_config CONFIG_LUCRETICUS_SCHED_TUNING; fi
+          if [ "${{ inputs.fast_charge }}" = "true" ]; then require_config CONFIG_LUCRETICUS_FAST_CHARGE_PROFILE; fi
+          if has_feature bt_hci_snoop; then require_config CONFIG_MTK_BT_HCI_TRACE; fi
+          if has_feature bt_audio_transport; then require_config CONFIG_MTK_BT_AUDIO_TRANSPORT; fi
+          if has_feature wowlan_keepalive; then require_config CONFIG_MTK_WLAN_WOWLAN_KEEPALIVE; fi
           make -s -C $(pwd) O=$(pwd)/out -j$(nproc)
 
       - name: Prepare AnyKernel3
