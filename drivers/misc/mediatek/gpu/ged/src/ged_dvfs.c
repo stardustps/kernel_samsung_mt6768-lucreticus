@@ -1607,6 +1607,7 @@ void ged_dvfs_boost_gpu_freq(void)
 #endif
 	ged_dvfs_freq_input_boostCB(boost_idx);
 }
+EXPORT_SYMBOL_GPL(ged_dvfs_boost_gpu_freq);
 
 static void ged_dvfs_set_bottom_gpu_freq(unsigned int ui32FreqLevel)
 {

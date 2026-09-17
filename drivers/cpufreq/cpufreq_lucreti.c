@@ -5,6 +5,7 @@
 #include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/jiffies.h>
 
 #include "cpufreq_governor.h"
 
@@ -18,6 +19,15 @@ struct lucreti_profile {
 struct lucreti_policy {
 	struct policy_dbs_info policy_dbs;
 	unsigned int down_count;
+	unsigned long boost_until;
+};
+
+struct lucreti_tuners {
+	unsigned int target_load;
+	unsigned int floor_load;
+	unsigned int down_samples;
+	unsigned int input_boost_ms;
+	bool profile_initialized;
 };
 
 struct lucreti_governor {
@@ -60,14 +70,23 @@ static unsigned int lucreti_update(struct cpufreq_policy *policy)
 						struct lucreti_policy, policy_dbs);
 	struct dbs_data *data = policy_dbs->dbs_data;
 	const struct lucreti_profile *profile = lucreti_profile_of(policy);
-	unsigned int load = max(dbs_update(policy), profile->floor_load);
-	unsigned int demand = min(100U, load * 100 / profile->target_load);
+	struct lucreti_tuners *tuners = data->tuners;
+	unsigned int load = max(dbs_update(policy), tuners->floor_load);
+	unsigned int demand = min(100U, load * 100 / tuners->target_load);
 	unsigned int target = policy->min +
 		div_u64((u64)(policy->max - policy->min) * demand, 100);
 
+	/* Treat the first busy wakeup as a short input burst. */
+	if (tuners->input_boost_ms && load >= tuners->target_load &&
+	    !time_before(jiffies, state->boost_until))
+		state->boost_until = jiffies +
+			msecs_to_jiffies(min(tuners->input_boost_ms, 2000U));
+	if (time_before(jiffies, state->boost_until))
+		target = policy->max;
+
 	/* Hold a higher frequency briefly without delaying a new load spike. */
 	if (target < policy->cur && policy->cur <= policy->max &&
-	    ++state->down_count < profile->down_samples)
+	    ++state->down_count < tuners->down_samples)
 		return data->sampling_rate;
 
 	state->down_count = 0;
@@ -91,14 +110,25 @@ static void lucreti_free(struct policy_dbs_info *policy_dbs)
 
 static int lucreti_init(struct dbs_data *data)
 {
+	struct lucreti_tuners *tuners;
+
+	tuners = kzalloc(sizeof(*tuners), GFP_KERNEL);
+	if (!tuners)
+		return -ENOMEM;
+	tuners->target_load = balance_profile.target_load;
+	tuners->floor_load = balance_profile.floor_load;
+	tuners->down_samples = balance_profile.down_samples;
+	data->tuners = tuners;
 	data->ignore_nice_load = 0;
-	data->io_is_busy = 0;
+	/* Include I/O wait time in load accounting for app launch response. */
+	data->io_is_busy = 1;
 	data->sampling_down_factor = 1;
 	return 0;
 }
 
 static void lucreti_exit(struct dbs_data *data)
 {
+	kfree(data->tuners);
 	data->tuners = NULL;
 }
 
@@ -109,14 +139,122 @@ static void lucreti_start(struct cpufreq_policy *policy)
 						struct lucreti_policy, policy_dbs);
 	struct dbs_data *data = policy_dbs->dbs_data;
 	const struct lucreti_profile *profile = lucreti_profile_of(policy);
+	struct lucreti_tuners *tuners = data->tuners;
 	unsigned int minimum_rate = max(profile->sampling_rate_us,
 				cpufreq_policy_transition_delay_us(policy));
 
 	state->down_count = 0;
+	state->boost_until = 0;
+	if (!tuners->profile_initialized) {
+		tuners->target_load = profile->target_load;
+		tuners->floor_load = profile->floor_load;
+		tuners->down_samples = profile->down_samples;
+		tuners->profile_initialized = true;
+	}
 	data->sampling_rate = max(data->sampling_rate, minimum_rate);
 }
 
-static struct attribute *lucreti_attributes[] = { NULL };
+static ssize_t lucreti_show_target_load(struct gov_attr_set *attr_set, char *buf)
+{
+	return sprintf(buf, "%u\n", to_dbs_data(attr_set)->tuners ?
+		((struct lucreti_tuners *)to_dbs_data(attr_set)->tuners)->target_load : 0);
+}
+
+static ssize_t lucreti_show_floor_load(struct gov_attr_set *attr_set, char *buf)
+{
+	return sprintf(buf, "%u\n", ((struct lucreti_tuners *)
+		to_dbs_data(attr_set)->tuners)->floor_load);
+}
+
+static ssize_t lucreti_show_down_samples(struct gov_attr_set *attr_set, char *buf)
+{
+	return sprintf(buf, "%u\n", ((struct lucreti_tuners *)
+		to_dbs_data(attr_set)->tuners)->down_samples);
+}
+
+static ssize_t lucreti_show_input_boost_ms(struct gov_attr_set *attr_set, char *buf)
+{
+	return sprintf(buf, "%u\n", ((struct lucreti_tuners *)
+		to_dbs_data(attr_set)->tuners)->input_boost_ms);
+}
+
+static ssize_t lucreti_show_sampling_rate(struct gov_attr_set *attr_set,
+						char *buf)
+{
+	return sprintf(buf, "%u\n", to_dbs_data(attr_set)->sampling_rate);
+}
+
+static ssize_t lucreti_store_target_load(struct gov_attr_set *attr_set,
+					 const char *buf, size_t count)
+{
+	struct lucreti_tuners *tuners = to_dbs_data(attr_set)->tuners;
+	unsigned int value;
+
+	if (kstrtouint(buf, 10, &value) || value < 1 || value > 100 ||
+	    value <= tuners->floor_load)
+		return -EINVAL;
+	tuners->target_load = value;
+	return count;
+}
+
+static ssize_t lucreti_store_floor_load(struct gov_attr_set *attr_set,
+					const char *buf, size_t count)
+{
+	struct lucreti_tuners *tuners = to_dbs_data(attr_set)->tuners;
+	unsigned int value;
+
+	if (kstrtouint(buf, 10, &value) || value > 99 ||
+	    value >= tuners->target_load)
+		return -EINVAL;
+	tuners->floor_load = value;
+	return count;
+}
+
+static ssize_t lucreti_store_down_samples(struct gov_attr_set *attr_set,
+					  const char *buf, size_t count)
+{
+	struct lucreti_tuners *tuners = to_dbs_data(attr_set)->tuners;
+	unsigned int value;
+
+	if (kstrtouint(buf, 10, &value) || value < 1 || value > 20)
+		return -EINVAL;
+	tuners->down_samples = value;
+	return count;
+}
+
+static ssize_t lucreti_store_input_boost_ms(struct gov_attr_set *attr_set,
+					    const char *buf, size_t count)
+{
+	struct lucreti_tuners *tuners = to_dbs_data(attr_set)->tuners;
+	unsigned int value;
+
+	if (kstrtouint(buf, 10, &value) || value > 2000)
+		return -EINVAL;
+	tuners->input_boost_ms = value;
+	return count;
+}
+
+static struct governor_attr lucreti_target_load =
+	__ATTR(target_load, 0644, lucreti_show_target_load, lucreti_store_target_load);
+static struct governor_attr lucreti_floor_load =
+	__ATTR(floor_load, 0644, lucreti_show_floor_load, lucreti_store_floor_load);
+static struct governor_attr lucreti_down_samples =
+	__ATTR(down_samples, 0644, lucreti_show_down_samples,
+	       lucreti_store_down_samples);
+static struct governor_attr lucreti_input_boost_ms =
+	__ATTR(input_boost_ms, 0644, lucreti_show_input_boost_ms,
+	       lucreti_store_input_boost_ms);
+static struct governor_attr lucreti_sampling_rate =
+	__ATTR(sampling_rate, 0644, lucreti_show_sampling_rate, store_sampling_rate);
+
+static struct attribute *lucreti_attributes[] = {
+	&lucreti_target_load.attr,
+	&lucreti_floor_load.attr,
+	&lucreti_down_samples.attr,
+	&lucreti_input_boost_ms.attr,
+	&lucreti_sampling_rate.attr,
+	NULL
+};
 
 #define LUCRETI_GOVERNOR(_name, _profile) { \
 	.dbs = { \
