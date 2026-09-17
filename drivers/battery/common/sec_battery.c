@@ -802,17 +802,17 @@ static int sec_bat_high_current_pdo(struct sec_battery_info *battery)
 	int count = min_t(int, battery->pd_list.num_fpdo, MAX_PDO_NUM);
 
 	for (i = 1; i < count; i++) {
-		int current = battery->pd_list.pd_info[i].max_current;
+		int pdo_current = battery->pd_list.pd_info[i].max_current;
 		int voltage = battery->pd_list.pd_info[i].max_voltage;
 
-		if (voltage <= 5000 || voltage > 9000 || !current)
+		if (voltage <= 5000 || voltage > 9000 || !pdo_current)
 			continue;
 		if (battery->pdata->max_input_current > 0)
-			current = min(current, battery->pdata->max_input_current);
-		if (current > best_current ||
-		    (current == best_current && voltage > best_voltage)) {
+			pdo_current = min(pdo_current, battery->pdata->max_input_current);
+		if (pdo_current > best_current ||
+		    (pdo_current == best_current && voltage > best_voltage)) {
 			best = i;
-			best_current = current;
+			best_current = pdo_current;
 			best_voltage = voltage;
 		}
 	}
