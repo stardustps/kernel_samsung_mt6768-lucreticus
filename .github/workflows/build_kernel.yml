@@ -242,6 +242,7 @@ jobs:
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s builtin
           echo "CONFIG_KSU=y" > $GITHUB_WORKSPACE/arch/arm64/configs/ksu.config
           echo "CONFIG_KSU_MANUAL_HOOK=y" >> $GITHUB_WORKSPACE/arch/arm64/configs/ksu.config
+          echo "# CONFIG_KSU_SUSFS is not set" >> $GITHUB_WORKSPACE/arch/arm64/configs/ksu.config
 
       - name: Setup WireGuard
         if: ${{ inputs.wireguard }}
@@ -486,6 +487,11 @@ jobs:
             echo 'Mali Valhall r32p1 was not selected'
             exit 1
           }
+          if [ "${{ inputs.ksu }}" = "true" ] && grep -Fqx 'CONFIG_KSU_SUSFS=y' out/.config; then
+            echo 'SUSFS inline hook mode must be disabled'
+            exit 1
+          fi
+          if [ "${{ inputs.nomount }}" = "true" ]; then require_config CONFIG_NOMOUNT; fi
           if [ "${{ inputs.dynamic_fsync }}" = "true" ]; then require_config CONFIG_DYNAMIC_FSYNC; fi
           if [ "${{ inputs.burnin }}" = "true" ]; then require_config CONFIG_LUCRETICUS_BURNIN_PROTECTION; fi
           if [ "${{ inputs.simple_gpu }}" = "true" ]; then require_config CONFIG_MTK_SIMPLE_GPU_ALGORITHM; fi

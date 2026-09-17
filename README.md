@@ -16,7 +16,7 @@ Source: `stardustps/kernel_samsung_mt6768-lucreticus` (`rc1` branch, fork of `Sa
 - **Rebrand** — `slmkernel` → `lucreticus` (`SLMKERNEL` → `LUCRETICUS`), `build_slmkernel.sh` → `build_lucreticus.sh`, `mt6768_slm_defconfig` → `mt6768_lucreticus_defconfig`, `CONFIG_LOCALVERSION`, `EXTRAVERSION=-r1-Armaros`.
 - **Nomount** — `fs/nomount.{c,h}` hides sensitive mountpoints from `/proc/{mounts,mountinfo,mountstats}` via `do_mount`/`do_umount` checks and `proc_namespace` filtering, `CONFIG_NOMOUNT=y`, toggle `/proc/nomount_enabled`.
 - **BBRv2** — backported from `DPR-KernelArchive/sweetie_star_kernel_xiaomi_sweet` (`sixteen-qpr1`, `RainyXeon <rainyxeon@gmail.com>`), keeps BBRv1 in `tcp_bbr.c` and adds BBRv2 as `tcp_bbr2.c` (`TCP_CONG_BBR2`, `DEFAULT_BBR2`), `CONFIG_TCP_CONG_BBR2=y`.
-- **KernelSU v2.3** — scope-minimized manual hooks in `fs/exec.c:do_execveat_common`, `fs/open.c:faccessat`, `fs/stat.c:newfstatat`/`newfstat` ret hooks, `read_write.c` left unhooked (LSM migration).
+- **SukiSU Ultra** — the optional CI setup uses its `builtin` branch and disables `CONFIG_KSU_SUSFS` to avoid SUSFS inline hook mode. The existing manual hooks are in `fs/exec.c`, `fs/open.c`, and `fs/stat.c`. NoMount remains independently controlled by `CONFIG_NOMOUNT`.
 - **Uname spoof** — `Makefile:KERNELVERSION = 5.10.239` so userspace `uname -r` reports `5.10.239` (spoofed), internal `VERSION/PATCHLEVEL/SUBLEVEL/EXTRAVERSION` kept for module deps.
 - **Droidspaces** — container prerequisites enabled in base defconfig: `SYSVIPC, POSIX_MQUEUE, IPC_NS, USER_NS, CGROUP_NET_PRIO, DEVTMPFS, TMPFS_POSIX_ACL/XATTR, NF_TABLES, NETFILTER_XT_MATCH_ADDRTYPE`.
 - **Aigis** — VoLTE IPv6 `ip6_output` cork fix retained, Mali Valhall `r32p1` pinned (`CONFIG_MTK_GPU_VERSION="mali valhall r32p1"`).
@@ -99,7 +99,7 @@ make -s O=out -j$(nproc)
 # out/arch/arm64/boot/Image (gzip to Image.gz for AnyKernel3)
 ```
 
-KernelSU setup (if needed): `curl -LSs https://raw.githubusercontent.com/backslashxx/KernelSU/master/kernel/setup.sh | bash`.
+KernelSU setup (if needed): `curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s builtin`. Keep `# CONFIG_KSU_SUSFS is not set` in `ksu.config`.
 
 WireGuard (if enabled in CI): `git clone --depth 1 https://github.com/WireGuard/wireguard-linux-compat.git && ./wireguard-linux-compat/kernel-tree-scripts/jury-rig.sh $(pwd)`.
 
