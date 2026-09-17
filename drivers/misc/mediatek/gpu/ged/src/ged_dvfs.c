@@ -1589,18 +1589,21 @@ static void ged_dvfs_freq_thermal_limitCB(unsigned int ui32LimitFreqID)
 void ged_dvfs_boost_gpu_freq(void)
 {
 	unsigned int boost_idx = 0;
+#ifdef CONFIG_MTK_MALI_BOOST
+	unsigned int level = min(READ_ONCE(mali_boost_level), 3U);
+	unsigned int table_size;
+#endif
 
 	if (gpu_debug_enable)
 		GED_LOGE("%s", __func__);
 
 #ifdef CONFIG_MTK_MALI_BOOST
-	if (READ_ONCE(mali_boost_level)) {
-		unsigned int table_size = mt_gpufreq_get_dvfs_table_num();
-		unsigned int level = min(READ_ONCE(mali_boost_level), 3U);
-
-		if (table_size)
-			boost_idx = (table_size - 1) * (3 - level) / 4;
-	}
+	if (!level)
+		return;
+	table_size = mt_gpufreq_get_dvfs_table_num();
+	if (!table_size)
+		return;
+	boost_idx = (table_size - 1) * (3 - level) / 4;
 #endif
 	ged_dvfs_freq_input_boostCB(boost_idx);
 }

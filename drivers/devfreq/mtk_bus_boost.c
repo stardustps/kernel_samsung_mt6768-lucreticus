@@ -40,12 +40,12 @@ static void mtk_bus_boost_work(struct work_struct *work)
 static void mtk_bus_boost_event(struct input_handle *handle,
 				unsigned int type, unsigned int code, int value)
 {
-	if (!READ_ONCE(enabled) || value <= 0)
+	if (!READ_ONCE(enabled))
 		return;
 
-	if ((type == EV_ABS && (code == ABS_MT_POSITION_X ||
-				code == ABS_MT_POSITION_Y)) ||
-	    (type == EV_KEY && code == BTN_TOUCH))
+	/* Boost on contact, not on every coordinate update during a swipe. */
+	if ((type == EV_ABS && code == ABS_MT_TRACKING_ID && value >= 0) ||
+	    (type == EV_KEY && code == BTN_TOUCH && value > 0))
 		mod_delayed_work(system_unbound_wq, &bus_boost_work, 0);
 }
 
@@ -90,9 +90,8 @@ static const struct input_device_id mtk_bus_boost_ids[] = {
 		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
 			 INPUT_DEVICE_ID_MATCH_ABSBIT,
 		.evbit = { BIT_MASK(EV_ABS) },
-		.absbit = { [BIT_WORD(ABS_MT_POSITION_X)] =
-			BIT_MASK(ABS_MT_POSITION_X) |
-			BIT_MASK(ABS_MT_POSITION_Y) },
+		.absbit = { [BIT_WORD(ABS_MT_TRACKING_ID)] =
+			BIT_MASK(ABS_MT_TRACKING_ID) },
 	},
 	{
 		.flags = INPUT_DEVICE_ID_MATCH_KEYBIT,

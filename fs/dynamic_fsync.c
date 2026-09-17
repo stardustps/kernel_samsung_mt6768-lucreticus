@@ -2,9 +2,11 @@
 /* Display-aware fsync deferral. Inspired by the dynamic fsync approach. */
 
 #include <linux/dynamic_fsync.h>
+#include <linux/atomic.h>
 #include <linux/fb.h>
 #include <linux/fs.h>
 #include <linux/init.h>
+#include <linux/jiffies.h>
 #include <linux/kobject.h>
 #include <linux/kernel.h>
 #include <linux/notifier.h>
@@ -16,13 +18,33 @@
 static bool dynamic_fsync_enabled = true;
 static bool screen_on = true;
 static struct kobject *dynamic_fsync_kobj;
+static atomic_t deferred_fsyncs = ATOMIC_INIT(0);
+
+#define DYNAMIC_FSYNC_MAX_DELAY_MS 5000
+
+static void dynamic_fsync_timeout(struct work_struct *work);
+static DECLARE_DELAYED_WORK(dynamic_fsync_timeout_work,
+			    dynamic_fsync_timeout);
 
 bool dynamic_fsync_should_defer(struct file *file)
 {
-	return READ_ONCE(dynamic_fsync_enabled) && READ_ONCE(screen_on) &&
+	bool defer = READ_ONCE(dynamic_fsync_enabled) && READ_ONCE(screen_on) &&
 		(file->f_mode & FMODE_WRITE) &&
 		file->f_op && file->f_op->fsync &&
 		S_ISREG(file_inode(file)->i_mode);
+
+	if (defer) {
+		atomic_set(&deferred_fsyncs, 1);
+		schedule_delayed_work(&dynamic_fsync_timeout_work,
+			msecs_to_jiffies(DYNAMIC_FSYNC_MAX_DELAY_MS));
+	}
+	return defer;
+}
+
+static void dynamic_fsync_timeout(struct work_struct *work)
+{
+	if (atomic_xchg(&deferred_fsyncs, 0))
+		sys_sync();
 }
 
 static void dynamic_fsync_flush(struct work_struct *work)
@@ -34,8 +56,10 @@ static DECLARE_WORK(dynamic_fsync_work, dynamic_fsync_flush);
 void dynamic_fsync_screen_event(bool on)
 {
 	WRITE_ONCE(screen_on, on);
-	if (!on && READ_ONCE(dynamic_fsync_enabled))
+	if (!on && READ_ONCE(dynamic_fsync_enabled)) {
+		atomic_set(&deferred_fsyncs, 0);
 		schedule_work(&dynamic_fsync_work);
+	}
 }
 
 static int dynamic_fsync_fb_event(struct notifier_block *nb,
@@ -64,8 +88,10 @@ static int dynamic_fsync_pm_event(struct notifier_block *nb,
 {
 	if (event == PM_SUSPEND_PREPARE || event == PM_HIBERNATION_PREPARE) {
 		WRITE_ONCE(screen_on, false);
-		if (READ_ONCE(dynamic_fsync_enabled))
+		if (READ_ONCE(dynamic_fsync_enabled)) {
+			atomic_set(&deferred_fsyncs, 0);
 			sys_sync();
+		}
 	}
 	return NOTIFY_OK;
 }
@@ -90,8 +116,10 @@ static ssize_t enabled_store(struct kobject *kobj,
 	if (ret)
 		return ret;
 	WRITE_ONCE(dynamic_fsync_enabled, value);
-	if (!value)
+	if (!value) {
+		atomic_set(&deferred_fsyncs, 0);
 		sys_sync();
+	}
 	return count;
 }
 static struct kobj_attribute enabled_attr =

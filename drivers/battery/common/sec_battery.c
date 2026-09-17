@@ -817,7 +817,8 @@ static int sec_bat_high_current_pdo(struct sec_battery_info *battery)
 		}
 	}
 
-	return best ? best : battery->pd_list.num_fpdo - 1;
+	/* Keep the 5 V PDO when no advertised higher PDO fits the profile. */
+	return best;
 }
 #endif
 
@@ -826,6 +827,9 @@ static void sec_bat_change_pdo(struct sec_battery_info *battery, int vol)
 	int target_pd_index = 0;
 
 	if (is_pd_wire_type(battery->wire_status)) {
+		if (battery->pd_list.num_fpdo <= 0 ||
+		    battery->pd_list.num_fpdo > MAX_PDO_NUM)
+			return;
 
 		if (vol == SEC_INPUT_VOLTAGE_9V) {
 			/* select PDO greater than 5V */
@@ -844,6 +848,9 @@ static void sec_bat_change_pdo(struct sec_battery_info *battery, int vol)
 		pr_info("%s: target_pd_index: %d, now_pd_index: %d\n", __func__,
 			target_pd_index, battery->pd_list.now_pd_index);
 
+		if (battery->pd_list.now_pd_index < 0 ||
+		    battery->pd_list.now_pd_index >= MAX_PDO_NUM)
+			return;
 		if (target_pd_index != battery->pd_list.now_pd_index) {
 			/* change input current before request new pdo if new pdo's input current is less than now */
 			sec_bat_set_current_event(battery, SEC_BAT_CURRENT_EVENT_SELECT_PDO,
@@ -956,6 +963,9 @@ static bool sec_bat_change_vbus_pd(struct sec_battery_info *battery)
 		return false;
 
 	if (is_pd_wire_type(battery->cable_type)) {
+		if (battery->pd_list.num_fpdo <= 0 ||
+		    battery->pd_list.num_fpdo > MAX_PDO_NUM)
+			return false;
 		if (battery->current_event & SEC_BAT_CURRENT_EVENT_SELECT_PDO) {
 			pr_info("%s: skip during current_event(0x%x)\n",
 				__func__, battery->current_event);
