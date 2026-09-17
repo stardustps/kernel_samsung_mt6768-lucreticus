@@ -23,7 +23,7 @@ on:
       sched_bore:
         description: 'Enable BORE scheduler tuning? [EXPERIMENTAL]'
         required: true
-        default: false
+        default: true
         type: boolean
       opt:
         description: 'Compiler optimization level'
@@ -483,7 +483,12 @@ jobs:
           }
           require_config CONFIG_CPU_FREQ_GOV_LUCRETI
           require_config CONFIG_CPU_FREQ_DEFAULT_GOV_LUCRETIBALANCE
-          if [ "${{ inputs.sched_bore }}" = "true" ]; then require_config CONFIG_SCHED_BORE; fi
+          if [ "${{ inputs.sched_bore }}" = "true" ]; then
+            require_config CONFIG_SCHED_BORE
+          elif ! grep -Fqx '# CONFIG_SCHED_BORE is not set' out/.config; then
+            echo 'BORE scheduler was not disabled'
+            exit 1
+          fi
           if [ "${{ inputs.ksu }}" = "true" ] && grep -Fqx 'CONFIG_KSU_SUSFS=y' out/.config; then
             echo 'SUSFS inline hook mode must be disabled'
             exit 1

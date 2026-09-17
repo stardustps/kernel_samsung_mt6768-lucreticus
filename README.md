@@ -42,6 +42,25 @@ Source: `stardustps/kernel_samsung_mt6768-lucreticus` (`rc1` branch, fork of `Sa
 - **Netprio fix** — `task_netprioidx` / `netprio_cgroup` use `css->id`.
 - **AnyKernel3** — `stardustps/sta7dust` packaging (`Image`→`Image.gz`, flashable zip).
 
+## Compare CPU governors on a phone
+
+After booting the new kernel, copy `tools/lucreticus/measure_governor.sh` to `/data/local/tmp/` using ADB on a host that can reach the phone, or copy it directly on the phone. Run it in a root shell once per governor:
+
+```sh
+sh /data/local/tmp/measure_governor.sh schedutil 120
+sh /data/local/tmp/measure_governor.sh lucretibalance 120
+sh /data/local/tmp/measure_governor.sh lucretiperf 120
+sh /data/local/tmp/measure_governor.sh lucretibattery 120
+```
+
+Repeat the same workload and screen brightness for each 120-second run, preferably unplugged and starting at a similar temperature. The script prints its output directory under `/sdcard/Download/`, records CPU frequency residency and battery readings, and restores the previous governors when it exits. Copy the four directories to a computer and summarize them with:
+
+```sh
+python3 tools/lucreticus/summarize_governors.py /path/to/lucreti-*
+```
+
+The summary reports average requested CPU frequency, time at the highest frequency, transitions, battery charge change, and battery temperature. Repeat runs before drawing conclusions; these counters do not measure app frame times or battery life by themselves. Use a Perfetto trace for frame timing if smoothness is the goal.
+
 ## How to build locally
 
 ### Toolchain
@@ -116,7 +135,7 @@ WireGuard (if enabled in CI): `git clone --depth 1 https://github.com/WireGuard/
 - `clock` — `stock/overclock/downclock` (`LUCRETICUS_OC_*` / `UV`)
 - `hz` — `100/250/300/1000` (`CONFIG_HZ`)
 - `gpu_clock` — `stock/overclock/downclock/max` (`LUCRETICUS_OC_GPU`)
-- `sched_bore` — enable BORE scheduler tuning at build time, off by default
+- `sched_bore` — enable BORE scheduler tuning at build time, on by default to match the former balance build
 - `nosec` / `nodebug` / `use_cache` — experimentals
 - `dynamic_fsync` / `burnin` / `simple_gpu` / `mali_boost` / `mtk_bus_boost` — independent experimental feature toggles, off by default
 - `fast_charge` — high-current PD / 9 V QC-AFC profile switch, off by default
