@@ -20,6 +20,7 @@ Source: `stardustps/kernel_samsung_mt6768-lucreticus` (`rc1` branch, fork of `Sa
 - **Uname spoof** — `Makefile:KERNELVERSION = 5.10.239` so userspace `uname -r` reports `5.10.239` (spoofed), internal `VERSION/PATCHLEVEL/SUBLEVEL/EXTRAVERSION` kept for module deps.
 - **Droidspaces** — container prerequisites enabled in base defconfig: `SYSVIPC, POSIX_MQUEUE, IPC_NS, USER_NS, CGROUP_NET_PRIO, DEVTMPFS, TMPFS_POSIX_ACL/XATTR, NF_TABLES, NETFILTER_XT_MATCH_ADDRTYPE`.
 - **Aigis** — VoLTE IPv6 `ip6_output` cork fix retained, Mali Valhall `r32p1` pinned (`CONFIG_MTK_GPU_VERSION="mali valhall r32p1"`).
+- **Lucreti CPUFreq governors** — `lucretiperf`, `lucretibalance`, and `lucretibattery` are available in every profile. They scale CPU frequency from policy-limited CPU load with progressively lower frequency targets and longer sampling intervals. The `perf`, `balance`, and `battery` builds select the matching default governor. Switch a CPU policy at runtime through its `scaling_governor` sysfs file; GPU clocks, voltage tables, scheduler options, and tick rate remain build-time profile settings. Android userspace may override the default governor during boot.
 - **Zen I/O scheduler** — `block/zen-iosched.c` (FCFS + deadlines, `sync_expire=HZ/2`, `async_expire=5*HZ`), `IOSCHED_ZEN` / `DEFAULT_ZEN`.
 - **Dynamic fsync (experimental)** — defers writable regular-file `fsync`/`fdatasync` while the display is on, then schedules a sync five seconds after the first deferral, at display blank, and at suspend. It is controlled by `CONFIG_DYNAMIC_FSYNC` and the kernel-manager-compatible `/sys/kernel/dyn_fsync/Dyn_fsync_active`. A crash before the next sync can lose recent writes.
 - **OLED burn-in profile (experimental)** — caps normal brightness on the A32/A22/M22/M32 Samsung OLED panels (including F22 through its M22 config) at level 220 by default (`CONFIG_LUCRETICUS_BURNIN_PROTECTION`). AOD and the A32 fingerprint mask path are left to the panel driver. Runtime parameters are `/sys/module/lucreticus_burnin/parameters/enabled` and `max_level` (1–255); changes take effect on the next brightness update.
@@ -109,7 +110,7 @@ WireGuard (if enabled in CI): `git clone --depth 1 https://github.com/WireGuard/
 
 - `device` — `a32/a22/f22/m22/m32/all` (matrix fans out across devices)
 - `ksu` — add KernelSU
-- `profile` — `perf/balance/battery/all` (`perf` OC + `HZ_250`, `battery` UV + `HZ_100`, `balance` base only)
+- `profile` — `perf/balance/battery/all` selects default `lucretiperf` / `lucretibalance` / `lucretibattery` respectively; the separate `clock` and `hz` inputs override clock and tick settings from the profile fragments
 - `opt` — `O2/O3` (`KCFLAGS/KCPPFLAGS`)
 - `droidspaces` / `nomount` / `zen` / `aio_opt` / `wireguard` / `docker` / `bypass_charging`
 - `lto` — `none/thin/full`

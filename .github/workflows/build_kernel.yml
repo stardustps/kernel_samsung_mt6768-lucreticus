@@ -285,6 +285,29 @@ jobs:
           if [ "${{ matrix.profile }}" != "balance" ]; then
             cat $CFGDIR/${{ matrix.profile }}.config >> $CFGDIR/compiled_defconfig
           fi
+          case "${{ matrix.profile }}" in
+            perf)
+              scripts/config --file $CFGDIR/compiled_defconfig \
+                --enable CONFIG_CPU_FREQ_GOV_LUCRETI \
+                --enable CONFIG_CPU_FREQ_DEFAULT_GOV_LUCRETIPERF \
+                --disable CONFIG_CPU_FREQ_DEFAULT_GOV_LUCRETIBALANCE \
+                --disable CONFIG_CPU_FREQ_DEFAULT_GOV_LUCRETIBATTERY
+              ;;
+            battery)
+              scripts/config --file $CFGDIR/compiled_defconfig \
+                --enable CONFIG_CPU_FREQ_GOV_LUCRETI \
+                --enable CONFIG_CPU_FREQ_DEFAULT_GOV_LUCRETIBATTERY \
+                --disable CONFIG_CPU_FREQ_DEFAULT_GOV_LUCRETIBALANCE \
+                --disable CONFIG_CPU_FREQ_DEFAULT_GOV_LUCRETIPERF
+              ;;
+            balance)
+              scripts/config --file $CFGDIR/compiled_defconfig \
+                --enable CONFIG_CPU_FREQ_GOV_LUCRETI \
+                --enable CONFIG_CPU_FREQ_DEFAULT_GOV_LUCRETIBALANCE \
+                --disable CONFIG_CPU_FREQ_DEFAULT_GOV_LUCRETIPERF \
+                --disable CONFIG_CPU_FREQ_DEFAULT_GOV_LUCRETIBATTERY
+              ;;
+          esac
           if [ "${{ inputs.ksu }}" = "true" ]; then
             cat $CFGDIR/ksu.config >> $CFGDIR/compiled_defconfig
           fi
@@ -487,6 +510,12 @@ jobs:
             echo 'Mali Valhall r32p1 was not selected'
             exit 1
           }
+          require_config CONFIG_CPU_FREQ_GOV_LUCRETI
+          case "${{ matrix.profile }}" in
+            perf) require_config CONFIG_CPU_FREQ_DEFAULT_GOV_LUCRETIPERF ;;
+            balance) require_config CONFIG_CPU_FREQ_DEFAULT_GOV_LUCRETIBALANCE ;;
+            battery) require_config CONFIG_CPU_FREQ_DEFAULT_GOV_LUCRETIBATTERY ;;
+          esac
           if [ "${{ inputs.ksu }}" = "true" ] && grep -Fqx 'CONFIG_KSU_SUSFS=y' out/.config; then
             echo 'SUSFS inline hook mode must be disabled'
             exit 1
