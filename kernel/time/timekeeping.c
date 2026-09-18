@@ -26,6 +26,7 @@
 #include <linux/stop_machine.h>
 #include <linux/pvclock_gtod.h>
 #include <linux/compiler.h>
+#include <linux/time64.h>
 
 #include "tick-internal.h"
 #include "ntp_internal.h"
@@ -902,6 +903,47 @@ void ktime_get_ts64(struct timespec64 *ts)
 	timespec64_add_ns(ts, nsec + tomono.tv_nsec);
 }
 EXPORT_SYMBOL_GPL(ktime_get_ts64);
+
+/**
+ * ktime_get_coarse_ts64 - get the coarse monotonic clock in timespec64 format
+ * @ts:		pointer to timespec64 variable
+ *
+ * The function returns the same coarse cached time value as returned by
+ * ktime_get_coarse(), but in timespec64 format.
+ */
+void ktime_get_coarse_ts64(struct timespec64 *ts)
+{
+	struct timekeeper *tk = &tk_core.timekeeper;
+	struct timespec64 now, mono;
+	unsigned int seq;
+
+	do {
+		seq = read_seqcount_begin(&tk_core.seq);
+
+		now = tk_xtime(tk);
+		mono = tk->wall_to_monotonic;
+	} while (read_seqcount_retry(&tk_core.seq, seq));
+
+	set_normalized_timespec64(ts, now.tv_sec + mono.tv_sec,
+				   now.tv_nsec + mono.tv_nsec);
+}
+EXPORT_SYMBOL(ktime_get_coarse_ts64);
+
+/**
+ * ktime_get_coarse_real_ts64 - get the coarse real-time clock in timespec64 format
+ * @ts:		pointer to timespec64 variable
+ */
+void ktime_get_coarse_real_ts64(struct timespec64 *ts)
+{
+	struct timekeeper *tk = &tk_core.timekeeper;
+	unsigned int seq;
+
+	do {
+		seq = read_seqcount_begin(&tk_core.seq);
+		*ts = tk_xtime(tk);
+	} while (read_seqcount_retry(&tk_core.seq, seq));
+}
+EXPORT_SYMBOL(ktime_get_coarse_real_ts64);
 
 /**
  * ktime_get_seconds - Get the seconds portion of CLOCK_MONOTONIC
