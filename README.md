@@ -1,6 +1,6 @@
 # kernel_samsung_mt6768-lucreticus
 
-Lucreticus kernel for Samsung Galaxy A32 (SM-A325F, MT6768 / MT6769) and siblings. Based on Samsung `4.14.357` (OpenELA `4.14.357-openela`), rebranded from slmkernel to **lucreticus `r1-Armaros`** (`-r1-Armaros`, `CONFIG_LOCALVERSION="-lucreticus_r1-Armaros@dotarma"`, `uname -r` spoofed to `5.10.239`).
+Lucreticus kernel for Samsung Galaxy A32 (SM-A325F, MT6768 / MT6769) and siblings. Based on Samsung `4.14.357` (OpenELA `4.14.357-openela`), rebranded from slmkernel to **lucreticus `r1-Armaros`** (`CONFIG_LOCALVERSION="-lucreticus_r1-Armaros@dotarma"`).
 
 Source: `stardustps/kernel_samsung_mt6768-lucreticus` (`rc1` branch, fork of `Samsung-MT6769-Devs/android_kernel_samsung_mt6768`).
 
@@ -13,11 +13,10 @@ Source: `stardustps/kernel_samsung_mt6768-lucreticus` (`rc1` branch, fork of `Sa
 
 ## Features
 
-- **Rebrand** — `slmkernel` → `lucreticus` (`SLMKERNEL` → `LUCRETICUS`), `build_slmkernel.sh` → `build_lucreticus.sh`, `mt6768_slm_defconfig` → `mt6768_lucreticus_defconfig`, `CONFIG_LOCALVERSION`, `EXTRAVERSION=-r1-Armaros`.
+- **Rebrand** — `slmkernel` → `lucreticus` (`SLMKERNEL` → `LUCRETICUS`), `build_slmkernel.sh` → `build_lucreticus.sh`, `mt6768_slm_defconfig` → `mt6768_lucreticus_defconfig`, `CONFIG_LOCALVERSION`.
 - **Nomount** — `fs/nomount.{c,h}` hides sensitive mountpoints from `/proc/{mounts,mountinfo,mountstats}` via `do_mount`/`do_umount` checks and `proc_namespace` filtering, `CONFIG_NOMOUNT=y`, toggle `/proc/nomount_enabled`.
 - **BBRv2** — backported from `DPR-KernelArchive/sweetie_star_kernel_xiaomi_sweet` (`sixteen-qpr1`, `RainyXeon <rainyxeon@gmail.com>`), keeps BBRv1 in `tcp_bbr.c` and adds BBRv2 as `tcp_bbr2.c` (`TCP_CONG_BBR2`, `DEFAULT_BBR2`), `CONFIG_TCP_CONG_BBR2=y`.
 - **ReSukiSU** — the optional CI setup uses its `main` branch with `CONFIG_KSU_MANUAL_HOOK=y` and disables `CONFIG_KSU_SUSFS` to avoid SUSFS inline hook mode. The existing manual hooks are in `fs/exec.c`, `fs/open.c`, and `fs/stat.c`. NoMount remains independently controlled by `CONFIG_NOMOUNT`.
-- **Uname spoof** — `Makefile:KERNELVERSION = 5.10.239` so userspace `uname -r` reports `5.10.239` (spoofed), internal `VERSION/PATCHLEVEL/SUBLEVEL/EXTRAVERSION` kept for module deps.
 - **Droidspaces** — container prerequisites enabled in base defconfig: `SYSVIPC, POSIX_MQUEUE, IPC_NS, USER_NS, CGROUP_NET_PRIO, DEVTMPFS, TMPFS_POSIX_ACL/XATTR, NF_TABLES, NETFILTER_XT_MATCH_ADDRTYPE`.
 - **Aigis** — VoLTE IPv6 `ip6_output` cork fix retained, Mali Valhall `r32p1` pinned (`CONFIG_MTK_GPU_VERSION="mali valhall r32p1"`).
 - **Lucreti CPUFreq governors** — One kernel includes `lucretiperf`, `lucretibalance`, and `lucretibattery`, with `lucretibalance` as the default. They scale CPU frequency from policy-limited CPU load with progressively lower frequency targets and longer sampling intervals. Each governor exposes `target_load`, `floor_load`, `down_samples`, `input_boost_ms`, and `sampling_rate` under its CPUFreq sysfs directory for runtime tuning. Select a governor for each CPU policy in a kernel manager or through its `scaling_governor` sysfs file. GPU clocks, voltage tables, scheduler options, and tick rate are still chosen at build time. Android userspace may override the default governor during boot.
