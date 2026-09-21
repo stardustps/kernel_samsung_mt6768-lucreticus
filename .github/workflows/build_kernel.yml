@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       device:
-        description: 'Device to build for (or all)'
+        description: 'Device to build for (all, or unified [EXPERIMENTAL])'
         required: true
         default: 'a32'
         type: choice
@@ -15,11 +15,7 @@ on:
           - m22
           - m32
           - all
-      unified:
-        description: 'Single unified build for all 5 devices? [EXPERIMENTAL]'
-        required: true
-        default: false
-        type: boolean
+          - unified
       ksu:
         description: 'Add KernelSU?'
         required: true
@@ -183,7 +179,7 @@ jobs:
               *) echo "Unknown experimental feature: $FLAG"; exit 1 ;;
             esac
           done
-          if [ "${{ inputs.unified }}" = "true" ]; then
+          if [ "${{ inputs.device }}" = "unified" ]; then
             echo 'devices=["unified"]' >> $GITHUB_OUTPUT
           elif [ "${{ inputs.device }}" = "all" ]; then
             echo 'devices=["a32", "a22", "f22", "m22", "m32"]' >> $GITHUB_OUTPUT
