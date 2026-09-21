@@ -43,12 +43,18 @@ cat $CFGDIR/mt6768_lucreticus_defconfig $CFGDIR/"$DEVICE".config > $CFGDIR/compi
 
 #selinux and gpu driver control
 #buildable: mali bifrost r25p0, mali valhall r32p1, mali avalon r49p1[WIP]
-echo '
+read -p "`echo -e 'pick gpu driver 💩\n1) mali bifrost r25p0\n2) mali valhall r32p1 [default]\n3) mali avalon r49p1 [WIP]  '`" gpuchoice
+case "$gpuchoice" in
+  1 ) GPU_STR="mali bifrost r25p0";;
+  3 ) GPU_STR="mali avalon r49p1";;
+  * ) GPU_STR="mali valhall r32p1";;
+esac
+echo "
 # CONFIG_ALWAYS_ENFORCE is not set
 CONFIG_ALWAYS_PERMISSIVE=y
 
-CONFIG_MTK_GPU_VERSION="mali valhall r32p1"
-' >> "$CFGDIR/compiled_defconfig"
+CONFIG_MTK_GPU_VERSION=\"$GPU_STR\"
+" >> "$CFGDIR/compiled_defconfig"
 
 make -C $(pwd) O=$(pwd)/out -j$(nproc) compiled_defconfig
 make -s -C $(pwd) O=$(pwd)/out -j$(nproc)

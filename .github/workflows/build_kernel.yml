@@ -44,15 +44,16 @@ on:
         required: true
         default: true
         type: boolean
-      lto:
-        description: 'Link-Time Optimization [EXPERIMENT]'
+      gpu_drv:
+        description: 'Mali DDK version (or all)'
         required: true
-        default: 'none'
+        default: 'r32p1'
         type: choice
         options:
-          - none
-          - thin
-          - full
+          - r25p0
+          - r32p1
+          - r49p1
+          - all
       zen:
         description: 'Use Zen I/O scheduler as default?'
         required: true
@@ -169,6 +170,7 @@ jobs:
       EXPERIMENTAL_FEATURES: ${{ inputs.experimental_features }}
     outputs:
       devices: ${{ steps.set.outputs.devices }}
+      gpus: ${{ steps.set.outputs.gpus }}
     steps:
       - id: set
         run: |
@@ -186,17 +188,24 @@ jobs:
           else
             echo "devices=[\"${{ inputs.device }}\"]" >> $GITHUB_OUTPUT
           fi
+          if [ "${{ inputs.gpu_drv }}" = "all" ]; then
+            echo 'gpus=["r25p0", "r32p1", "r49p1"]' >> $GITHUB_OUTPUT
+          else
+            echo "gpus=[\"${{ inputs.gpu_drv }}\"]" >> $GITHUB_OUTPUT
+          fi
 
   build:
-    name: Build Kernel ${{ matrix.device }} ${{ inputs.opt }} ${{ inputs.ksu && 'with KernelSU' || 'standard' }}
+    name: Build Kernel ${{ matrix.device }} ${{ matrix.gpu }} ${{ inputs.opt }} ${{ inputs.ksu && 'with KernelSU' || 'standard' }}
     needs: setup
     runs-on: ubuntu-latest
     strategy:
       matrix:
         device: ${{ fromJSON(needs.setup.outputs.devices) }}
+        gpu: ${{ fromJSON(needs.setup.outputs.gpus) }}
 
     env:
       DEVICE_CHOICE: ${{ matrix.device }}
+      GPU_CHOICE: ${{ matrix.gpu }}
       KSU_CHOICE: ${{ inputs.ksu }}
       EXPERIMENTAL_FEATURES: ${{ inputs.experimental_features }}
 
@@ -224,7 +233,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: out
-          key: out-${{ github.sha }}-${{ matrix.device }}-${{ inputs.opt }}-${{ inputs.ksu }}-${{ inputs.lto }}-${{ inputs.zen }}-${{ inputs.aio_opt }}-${{ inputs.wireguard }}-${{ inputs.nosec }}-${{ inputs.nodebug }}-${{ inputs.droidspaces }}-${{ inputs.nomount }}-${{ inputs.bypass_charging }}-${{ inputs.docker }}-${{ inputs.dynamic_fsync }}-${{ inputs.burnin }}-${{ inputs.simple_gpu }}-${{ inputs.mali_boost }}-${{ inputs.mtk_bus_boost }}-${{ inputs.fast_charge }}-${{ contains(inputs.experimental_features, 'sched_tuning') }}-${{ contains(inputs.experimental_features, 'audio_jack_ir') }}-${{ contains(inputs.experimental_features, 'bt_hci_snoop') }}-${{ contains(inputs.experimental_features, 'bt_audio_transport') }}-${{ contains(inputs.experimental_features, 'wowlan_keepalive') }}-${{ contains(inputs.experimental_features, 'boot_diagnostics') }}-${{ inputs.clock }}-${{ inputs.hz }}-${{ inputs.gpu_clock }}-${{ inputs.sched_bore }}
+          key: out-${{ github.sha }}-${{ matrix.device }}-${{ inputs.opt }}-${{ inputs.ksu }}-${{ matrix.gpu }}-${{ inputs.zen }}-${{ inputs.aio_opt }}-${{ inputs.wireguard }}-${{ inputs.nosec }}-${{ inputs.nodebug }}-${{ inputs.droidspaces }}-${{ inputs.nomount }}-${{ inputs.bypass_charging }}-${{ inputs.docker }}-${{ inputs.dynamic_fsync }}-${{ inputs.burnin }}-${{ inputs.simple_gpu }}-${{ inputs.mali_boost }}-${{ inputs.mtk_bus_boost }}-${{ inputs.fast_charge }}-${{ contains(inputs.experimental_features, 'sched_tuning') }}-${{ contains(inputs.experimental_features, 'audio_jack_ir') }}-${{ contains(inputs.experimental_features, 'bt_hci_snoop') }}-${{ contains(inputs.experimental_features, 'bt_audio_transport') }}-${{ contains(inputs.experimental_features, 'wowlan_keepalive') }}-${{ contains(inputs.experimental_features, 'boot_diagnostics') }}-${{ inputs.clock }}-${{ inputs.hz }}-${{ inputs.gpu_clock }}-${{ inputs.sched_bore }}
 
       - name: Setup KernelSU
         if: ${{ inputs.ksu }}
@@ -334,20 +343,10 @@ jobs:
               --disable CONFIG_NF_TABLES \
               --disable CONFIG_NETFILTER_XT_MATCH_ADDRTYPE
           fi
-          if [ "${{ inputs.lto }}" = "thin" ]; then
-            scripts/config --file $CFGDIR/compiled_defconfig \
-              --enable CONFIG_LTO_CLANG \
-              --enable CONFIG_THINLTO
-          elif [ "${{ inputs.lto }}" = "full" ]; then
-            scripts/config --file $CFGDIR/compiled_defconfig \
-              --enable CONFIG_LTO_CLANG \
-              --disable CONFIG_THINLTO
-          else
-            scripts/config --file $CFGDIR/compiled_defconfig \
-              --disable CONFIG_LTO_CLANG \
-              --disable CONFIG_THINLTO \
-              --enable CONFIG_LTO_NONE
-          fi
+          scripts/config --file $CFGDIR/compiled_defconfig \
+            --disable CONFIG_LTO_CLANG \
+            --disable CONFIG_THINLTO \
+            --enable CONFIG_LTO_NONE
           if [ "${{ inputs.zen }}" = "true" ]; then
             scripts/config --file $CFGDIR/compiled_defconfig \
               --enable CONFIG_IOSCHED_ZEN \
@@ -492,7 +491,13 @@ jobs:
           echo '' >> $CFGDIR/compiled_defconfig
           echo '# CONFIG_ALWAYS_ENFORCE is not set' >> $CFGDIR/compiled_defconfig
           echo 'CONFIG_ALWAYS_PERMISSIVE=y' >> $CFGDIR/compiled_defconfig
-          echo 'CONFIG_MTK_GPU_VERSION="mali valhall r32p1"' >> $CFGDIR/compiled_defconfig
+          case "${{ env.GPU_CHOICE }}" in
+            r25p0) GPU_STR='mali bifrost r25p0' ;;
+            r49p1) GPU_STR='mali avalon r49p1' ;;
+            *) GPU_STR='mali valhall r32p1' ;;
+          esac
+          echo "GPU driver: $GPU_STR"
+          echo "CONFIG_MTK_GPU_VERSION=\"$GPU_STR\"" >> $CFGDIR/compiled_defconfig
           make -C $(pwd) O=$(pwd)/out -j$(nproc) compiled_defconfig
           require_config() {
             if ! grep -Fqx "$1=y" out/.config; then
@@ -500,8 +505,8 @@ jobs:
               exit 1
             fi
           }
-          grep -Fqx 'CONFIG_MTK_GPU_VERSION="mali valhall r32p1"' out/.config || {
-            echo 'Mali Valhall r32p1 was not selected'
+          grep -Fqx "CONFIG_MTK_GPU_VERSION=\"$GPU_STR\"" out/.config || {
+            echo "Mali $GPU_STR was not selected"
             exit 1
           }
           require_config CONFIG_CPU_FREQ_GOV_LUCRETI
@@ -655,18 +660,14 @@ jobs:
           if [ "${{ inputs.nodebug }}" = "true" ]; then
             SUFFIX="$SUFFIX-nodebug"
           fi
-          if [ "${{ inputs.lto }}" = "thin" ]; then
-            SUFFIX="$SUFFIX-thinlto"
-          elif [ "${{ inputs.lto }}" = "full" ]; then
-            SUFFIX="$SUFFIX-fulllto"
-          fi
+          SUFFIX="$SUFFIX-${{ env.GPU_CHOICE }}"
           zip -r9 ../lucreticus-r1-Armaros-${{ env.DEVICE_CHOICE }}-$SUFFIX-${{ env.SHORT_SHA }}.zip * -x .git README.md *placeholder
           ls -lh ../lucreticus-r1-Armaros-*.zip
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: lucreticus-r1-Armaros-${{ env.DEVICE_CHOICE }}-${{ inputs.ksu && 'ksu' || 'standard' }}
+          name: lucreticus-r1-Armaros-${{ env.DEVICE_CHOICE }}-${{ env.GPU_CHOICE }}-${{ inputs.ksu && 'ksu' || 'standard' }}
           path: lucreticus-r1-Armaros-*.zip
 
   notify:
@@ -734,7 +735,7 @@ jobs:
             LIST=$(printf '%s\n- %s — md5: %s' "$LIST" "$DEV" "$MD5")
             echo "$ZIP $MD5" >> files.txt
           done
-          TEXT=$(printf '<i>build successfully.</i>\n\nlucreticus kernel (%s builds)\n\nkernel version: 5.10.239 (spoofed)\nlucreticus patch version: r1-Armaros\n\ncompiler: ZyC Clang 14 -%s\nlto: %s\nkernelsu integrated: %s\ndroidspaces: %s\nnomount: %s\niosched: %s\naio optimized: %s\nwireguard: %s\nsamsung security: %s\ndebug: %s\ncache: %s\nbypass charging: %s\ndocker: %s\ndynamic fsync: %s\nburn-in profile: %s\nsimple GPU: %s\nMali boost: %s\nMTK bus boost: %s\nclock: %s\ntick: %sHz\ngpu clock: %s\ncommit: %s\n%s' "$COUNT" "${{ inputs.opt }}" "${{ inputs.lto }}" "$KSU_STATUS" "$DS_STATUS" "$NM_STATUS" "$ZEN_STATUS" "$AIO_STATUS" "$WG_STATUS" "$SEC_STATUS" "$DBG_STATUS" "$CACHE_STATUS" "$BYPASS_STATUS" "$DOCKER_STATUS" "$FSYNC_STATUS" "$BURNIN_STATUS" "$SGPU_STATUS" "$MBOOST_STATUS" "$BUS_STATUS" "$CLOCK_STATUS" "$HZ_STATUS" "$GPU_CLOCK_STATUS" "${{ github.sha }}" "$LIST")
+          TEXT=$(printf '<i>build successfully.</i>\n\nlucreticus kernel (%s builds)\n\nkernel version: 5.10.239 (spoofed)\nlucreticus patch version: r1-Armaros\n\ncompiler: ZyC Clang 14 -%s\nlto: %s\nkernelsu integrated: %s\ndroidspaces: %s\nnomount: %s\niosched: %s\naio optimized: %s\nwireguard: %s\nsamsung security: %s\ndebug: %s\ncache: %s\nbypass charging: %s\ndocker: %s\ndynamic fsync: %s\nburn-in profile: %s\nsimple GPU: %s\nMali boost: %s\nMTK bus boost: %s\nclock: %s\ntick: %sHz\ngpu clock: %s\ncommit: %s\n%s' "$COUNT" "${{ inputs.opt }}" "none" "$KSU_STATUS" "$DS_STATUS" "$NM_STATUS" "$ZEN_STATUS" "$AIO_STATUS" "$WG_STATUS" "$SEC_STATUS" "$DBG_STATUS" "$CACHE_STATUS" "$BYPASS_STATUS" "$DOCKER_STATUS" "$FSYNC_STATUS" "$BURNIN_STATUS" "$SGPU_STATUS" "$MBOOST_STATUS" "$BUS_STATUS" "$CLOCK_STATUS" "$HZ_STATUS" "$GPU_CLOCK_STATUS" "${{ github.sha }}" "$LIST")
           TEXT=$(printf '%s\nBORE scheduler: %s\nscheduler tuning: %s\nfast-charge profile: %s\naudio-jack IR tool: %s\nBT HCI trace: %s\nBT transport buffer: %s\nWoWLAN retention: %s\nboot diagnostics: %s' "$TEXT" "$BORE_STATUS" "$STUNE_STATUS" "$CHARGE_STATUS" "$IR_STATUS" "$BT_TRACE_STATUS" "$BT_BUF_STATUS" "$WOWLAN_STATUS" "$DIAGNOSTICS_STATUS")
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             --data-urlencode "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
