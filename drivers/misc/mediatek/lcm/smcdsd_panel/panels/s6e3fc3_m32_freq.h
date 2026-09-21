@@ -159,192 +159,192 @@ enum {
 	FREQ_RANGE_MAX = 162,
 };
 
-struct dynamic_freq_range m32_freq_range_GSM850[] = {
+static struct dynamic_freq_range m32_freq_range_GSM850[] = {
 	DEFINE_FREQ_RANGE(0, 0, 2),
 };
 
-struct dynamic_freq_range m32_freq_range_EGSM900[] = {
+static struct dynamic_freq_range m32_freq_range_EGSM900[] = {
 	DEFINE_FREQ_RANGE(0, 0, 2),
 };
 
-struct dynamic_freq_range m32_freq_range_DCS1800[] = {
+static struct dynamic_freq_range m32_freq_range_DCS1800[] = {
 	DEFINE_FREQ_RANGE(0, 0, 2),
 };
 
-struct dynamic_freq_range m32_freq_range_PCS1900[] = {
+static struct dynamic_freq_range m32_freq_range_PCS1900[] = {
 	DEFINE_FREQ_RANGE(0, 0, 1),
 };
 
-struct dynamic_freq_range m32_freq_range_WB01[] = {
+static struct dynamic_freq_range m32_freq_range_WB01[] = {
 	DEFINE_FREQ_RANGE(10562, 10658, 0),
 	DEFINE_FREQ_RANGE(10659, 10728, 1),
 	DEFINE_FREQ_RANGE(10729, 10838, 0),
 };
 
-struct dynamic_freq_range m32_freq_range_WB02[] = {
+static struct dynamic_freq_range m32_freq_range_WB02[] = {
 	DEFINE_FREQ_RANGE(9662, 9938, 0),
 };
 
-struct dynamic_freq_range m32_freq_range_WB03[] = {
+static struct dynamic_freq_range m32_freq_range_WB03[] = {
 	DEFINE_FREQ_RANGE(1162, 1357, 0),
 	DEFINE_FREQ_RANGE(1358, 1427, 1),
 	DEFINE_FREQ_RANGE(1428, 1513, 0),
 };
 
-struct dynamic_freq_range m32_freq_range_WB04[] = {
+static struct dynamic_freq_range m32_freq_range_WB04[] = {
 	DEFINE_FREQ_RANGE(1537, 1633, 0),
 	DEFINE_FREQ_RANGE(1634, 1703, 1),
 	DEFINE_FREQ_RANGE(1704, 1738, 0),
 };
 
-struct dynamic_freq_range m32_freq_range_WB05[] = {
+static struct dynamic_freq_range m32_freq_range_WB05[] = {
 	DEFINE_FREQ_RANGE(4357, 4458, 2),
 };
 
-struct dynamic_freq_range m32_freq_range_WB06[] = {
+static struct dynamic_freq_range m32_freq_range_WB06[] = {
 	DEFINE_FREQ_RANGE(4387, 4413, 2),
 };
 
-struct dynamic_freq_range m32_freq_range_WB07[] = {
+static struct dynamic_freq_range m32_freq_range_WB07[] = {
 	DEFINE_FREQ_RANGE(2237, 2278, 0),
 	DEFINE_FREQ_RANGE(2279, 2348, 1),
 	DEFINE_FREQ_RANGE(2349, 2563, 0),
 };
 
-struct dynamic_freq_range m32_freq_range_WB08[] = {
+static struct dynamic_freq_range m32_freq_range_WB08[] = {
 	DEFINE_FREQ_RANGE(2937, 3088, 2),
 };
 
-struct dynamic_freq_range m32_freq_range_WB19[] = {
+static struct dynamic_freq_range m32_freq_range_WB19[] = {
 	DEFINE_FREQ_RANGE(712, 763, 2),
 };
 
-struct dynamic_freq_range m32_freq_range_LB01[] = {
+static struct dynamic_freq_range m32_freq_range_LB01[] = {
 	DEFINE_FREQ_RANGE(0, 217, 0),
 	DEFINE_FREQ_RANGE(218, 357, 1),
 	DEFINE_FREQ_RANGE(358, 599, 0),
 };
 
-struct dynamic_freq_range m32_freq_range_LB02[] = {
+static struct dynamic_freq_range m32_freq_range_LB02[] = {
 	DEFINE_FREQ_RANGE(600, 618, 1),
 	DEFINE_FREQ_RANGE(619, 1191, 0),
 	DEFINE_FREQ_RANGE(1192, 1199, 1),
 };
 
-struct dynamic_freq_range m32_freq_range_LB03[] = {
+static struct dynamic_freq_range m32_freq_range_LB03[] = {
 	DEFINE_FREQ_RANGE(1200, 1615, 0),
 	DEFINE_FREQ_RANGE(1616, 1755, 1),
 	DEFINE_FREQ_RANGE(1756, 1949, 0),
 };
 
-struct dynamic_freq_range m32_freq_range_LB04[] = {
+static struct dynamic_freq_range m32_freq_range_LB04[] = {
 	DEFINE_FREQ_RANGE(1950, 2167, 0),
 	DEFINE_FREQ_RANGE(2168, 2307, 1),
 	DEFINE_FREQ_RANGE(2308, 2399, 0),
 };
 
-struct dynamic_freq_range m32_freq_range_LB05[] = {
+static struct dynamic_freq_range m32_freq_range_LB05[] = {
 	DEFINE_FREQ_RANGE(2400, 2469, 2),
 	DEFINE_FREQ_RANGE(2470, 2649, 0),
 };
 
-struct dynamic_freq_range m32_freq_range_LB07[] = {
+static struct dynamic_freq_range m32_freq_range_LB07[] = {
 	DEFINE_FREQ_RANGE(2750, 2857, 0),
 	DEFINE_FREQ_RANGE(2858, 2997, 1),
 	DEFINE_FREQ_RANGE(2998, 3449, 0),
 };
 
-struct dynamic_freq_range m32_freq_range_LB08[] = {
+static struct dynamic_freq_range m32_freq_range_LB08[] = {
 	DEFINE_FREQ_RANGE(3450, 3500, 1),
 	DEFINE_FREQ_RANGE(3501, 3799, 2),
 };
 
-struct dynamic_freq_range m32_freq_range_LB12[] = {
+static struct dynamic_freq_range m32_freq_range_LB12[] = {
 	DEFINE_FREQ_RANGE(5010, 5179, 0),
 };
 
-struct dynamic_freq_range m32_freq_range_LB13[] = {
+static struct dynamic_freq_range m32_freq_range_LB13[] = {
 	DEFINE_FREQ_RANGE(5180, 5279, 1),
 };
 
-struct dynamic_freq_range m32_freq_range_LB14[] = {
+static struct dynamic_freq_range m32_freq_range_LB14[] = {
 	DEFINE_FREQ_RANGE(5280, 5379, 0),
 };
 
-struct dynamic_freq_range m32_freq_range_LB17[] = {
+static struct dynamic_freq_range m32_freq_range_LB17[] = {
 	DEFINE_FREQ_RANGE(5730, 5849, 2),
 };
 
-struct dynamic_freq_range m32_freq_range_LB18[] = {
+static struct dynamic_freq_range m32_freq_range_LB18[] = {
 	DEFINE_FREQ_RANGE(5850, 5999, 2),
 };
 
-struct dynamic_freq_range m32_freq_range_LB19[] = {
+static struct dynamic_freq_range m32_freq_range_LB19[] = {
 	DEFINE_FREQ_RANGE(6000, 6149, 2),
 };
 
-struct dynamic_freq_range m32_freq_range_LB20[] = {
+static struct dynamic_freq_range m32_freq_range_LB20[] = {
 	DEFINE_FREQ_RANGE(6150, 6152, 2),
 	DEFINE_FREQ_RANGE(6153, 6449, 1),
 };
 
-struct dynamic_freq_range m32_freq_range_LB21[] = {
+static struct dynamic_freq_range m32_freq_range_LB21[] = {
 	DEFINE_FREQ_RANGE(6450, 6532, 1),
 	DEFINE_FREQ_RANGE(6533, 6599, 0),
 };
 
-struct dynamic_freq_range m32_freq_range_LB25[] = {
+static struct dynamic_freq_range m32_freq_range_LB25[] = {
 	DEFINE_FREQ_RANGE(8040, 8058, 1),
 	DEFINE_FREQ_RANGE(8059, 8631, 0),
 	DEFINE_FREQ_RANGE(8632, 8689, 1),
 };
 
-struct dynamic_freq_range m32_freq_range_LB26[] = {
+static struct dynamic_freq_range m32_freq_range_LB26[] = {
 	DEFINE_FREQ_RANGE(8690, 9039, 2),
 };
 
-struct dynamic_freq_range m32_freq_range_LB28[] = {
+static struct dynamic_freq_range m32_freq_range_LB28[] = {
 	DEFINE_FREQ_RANGE(9210, 9402, 0),
 	DEFINE_FREQ_RANGE(9403, 9542, 2),
 	DEFINE_FREQ_RANGE(9543, 9659, 0),
 };
 
-struct dynamic_freq_range m32_freq_range_LB29[] = {
+static struct dynamic_freq_range m32_freq_range_LB29[] = {
 	DEFINE_FREQ_RANGE(9660, 9689, 2),
 	DEFINE_FREQ_RANGE(9690, 9769, 0),
 };
 
-struct dynamic_freq_range m32_freq_range_LB30[] = {
+static struct dynamic_freq_range m32_freq_range_LB30[] = {
 	DEFINE_FREQ_RANGE(9770, 9866, 1),
 	DEFINE_FREQ_RANGE(9867, 9869, 0),
 };
 
-struct dynamic_freq_range m32_freq_range_LB32[] = {
+static struct dynamic_freq_range m32_freq_range_LB32[] = {
 	DEFINE_FREQ_RANGE(9920, 10301, 0),
 	DEFINE_FREQ_RANGE(10302, 10359, 1),
 };
 
-struct dynamic_freq_range m32_freq_range_LB34[] = {
+static struct dynamic_freq_range m32_freq_range_LB34[] = {
 	DEFINE_FREQ_RANGE(36200, 36349, 0),
 };
 
-struct dynamic_freq_range m32_freq_range_LB38[] = {
+static struct dynamic_freq_range m32_freq_range_LB38[] = {
 	DEFINE_FREQ_RANGE(37750, 37784, 1),
 	DEFINE_FREQ_RANGE(37785, 38249, 0),
 };
 
-struct dynamic_freq_range m32_freq_range_LB39[] = {
+static struct dynamic_freq_range m32_freq_range_LB39[] = {
 	DEFINE_FREQ_RANGE(38250, 38628, 0),
 	DEFINE_FREQ_RANGE(38629, 38649, 1),
 };
 
-struct dynamic_freq_range m32_freq_range_LB40[] = {
+static struct dynamic_freq_range m32_freq_range_LB40[] = {
 	DEFINE_FREQ_RANGE(38650, 39106, 0),
 	DEFINE_FREQ_RANGE(39107, 39246, 1),
 	DEFINE_FREQ_RANGE(39247, 39649, 0),
 };
 
-struct dynamic_freq_range m32_freq_range_LB41[] = {
+static struct dynamic_freq_range m32_freq_range_LB41[] = {
 	DEFINE_FREQ_RANGE(39650, 39712, 1),
 	DEFINE_FREQ_RANGE(39713, 40284, 0),
 	DEFINE_FREQ_RANGE(40285, 40424, 1),
@@ -353,7 +353,7 @@ struct dynamic_freq_range m32_freq_range_LB41[] = {
 	DEFINE_FREQ_RANGE(41138, 41589, 0),
 };
 
-struct dynamic_freq_range m32_freq_range_LB42[] = {
+static struct dynamic_freq_range m32_freq_range_LB42[] = {
 	DEFINE_FREQ_RANGE(41590, 41740, 0),
 	DEFINE_FREQ_RANGE(41741, 41880, 1),
 	DEFINE_FREQ_RANGE(41881, 42452, 0),
@@ -363,7 +363,7 @@ struct dynamic_freq_range m32_freq_range_LB42[] = {
 	DEFINE_FREQ_RANGE(43306, 43589, 0),
 };
 
-struct dynamic_freq_range m32_freq_range_LB48[] = {
+static struct dynamic_freq_range m32_freq_range_LB48[] = {
 	DEFINE_FREQ_RANGE(55240, 55315, 0),
 	DEFINE_FREQ_RANGE(55316, 55455, 1),
 	DEFINE_FREQ_RANGE(55456, 56028, 0),
@@ -371,54 +371,54 @@ struct dynamic_freq_range m32_freq_range_LB48[] = {
 	DEFINE_FREQ_RANGE(56169, 56739, 0),
 };
 
-struct dynamic_freq_range m32_freq_range_LB66[] = {
+static struct dynamic_freq_range m32_freq_range_LB66[] = {
 	DEFINE_FREQ_RANGE(66436, 66653, 0),
 	DEFINE_FREQ_RANGE(66654, 66793, 1),
 	DEFINE_FREQ_RANGE(66794, 67335, 0),
 };
 
-struct dynamic_freq_range m32_freq_range_LB71[] = {
+static struct dynamic_freq_range m32_freq_range_LB71[] = {
 	DEFINE_FREQ_RANGE(68586, 68828, 1),
 	DEFINE_FREQ_RANGE(68829, 68935, 2),
 };
 
-struct dynamic_freq_range m32_freq_range_TD1[] = {
+static struct dynamic_freq_range m32_freq_range_TD1[] = {
 	DEFINE_FREQ_RANGE(0, 0, 0),
 };
 
-struct dynamic_freq_range m32_freq_range_TD2[] = {
+static struct dynamic_freq_range m32_freq_range_TD2[] = {
 	DEFINE_FREQ_RANGE(0, 0, 0),
 };
 
-struct dynamic_freq_range m32_freq_range_TD3[] = {
+static struct dynamic_freq_range m32_freq_range_TD3[] = {
 	DEFINE_FREQ_RANGE(0, 0, 1),
 };
 
-struct dynamic_freq_range m32_freq_range_TD4[] = {
+static struct dynamic_freq_range m32_freq_range_TD4[] = {
 	DEFINE_FREQ_RANGE(0, 0, 0),
 };
 
-struct dynamic_freq_range m32_freq_range_TD5[] = {
+static struct dynamic_freq_range m32_freq_range_TD5[] = {
 	DEFINE_FREQ_RANGE(0, 0, 2),
 };
 
-struct dynamic_freq_range m32_freq_range_TD6[] = {
+static struct dynamic_freq_range m32_freq_range_TD6[] = {
 	DEFINE_FREQ_RANGE(0, 0, 1),
 };
 
-struct dynamic_freq_range m32_freq_range_BC0[] = {
+static struct dynamic_freq_range m32_freq_range_BC0[] = {
 	DEFINE_FREQ_RANGE(0, 0, 2),
 };
 
-struct dynamic_freq_range m32_freq_range_BC1[] = {
+static struct dynamic_freq_range m32_freq_range_BC1[] = {
 	DEFINE_FREQ_RANGE(0, 0, 0),
 };
 
-struct dynamic_freq_range m32_freq_range_BC10[] = {
+static struct dynamic_freq_range m32_freq_range_BC10[] = {
 	DEFINE_FREQ_RANGE(0, 0, 2),
 };
 
-struct df_freq_tbl_info m32_dynamic_freq_set[FREQ_RANGE_MAX] = {
+static struct df_freq_tbl_info m32_dynamic_freq_set[FREQ_RANGE_MAX] = {
 	[FREQ_RANGE_GSM850] = DEFINE_FREQ_SET(m32_freq_range_GSM850),
 	[FREQ_RANGE_EGSM900] = DEFINE_FREQ_SET(m32_freq_range_EGSM900),
 	[FREQ_RANGE_DCS1800] = DEFINE_FREQ_SET(m32_freq_range_DCS1800),

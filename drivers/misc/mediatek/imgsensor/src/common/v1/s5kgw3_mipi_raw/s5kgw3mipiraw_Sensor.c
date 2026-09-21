@@ -450,7 +450,7 @@ static struct SET_PD_BLOCK_INFO_T imgsensor_pd_info = {
 	}
 };
 
-void write_cmos_sensor(kal_uint16 addr, kal_uint16 para)
+static void write_cmos_sensor(kal_uint16 addr, kal_uint16 para)
 {
 	char pusendcmd[4] = {
 		(char)(addr >> 8), (char)(addr & 0xFF),

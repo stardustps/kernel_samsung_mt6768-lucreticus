@@ -2916,7 +2916,7 @@ exit:
 	return ret;
 }
 
-struct mipi_dsi_lcd_driver s6e3fc3_mipi_lcd_driver = {
+struct mipi_dsi_lcd_driver s6e3fc3_m32_mipi_lcd_driver = {
 	.driver = {
 		.name = "s6e3fc3",
 	},
@@ -2935,7 +2935,7 @@ struct mipi_dsi_lcd_driver s6e3fc3_mipi_lcd_driver = {
 	.framedone_notify	= smcdsd_panel_framedone,
 	.path_lock	= smcdsd_panel_path_lock,
 };
-__XX_ADD_LCD_DRIVER(s6e3fc3_mipi_lcd_driver);
+__XX_ADD_LCD_DRIVER(s6e3fc3_m32_mipi_lcd_driver);
 
 static int __init panel_late_init(void)
 {
