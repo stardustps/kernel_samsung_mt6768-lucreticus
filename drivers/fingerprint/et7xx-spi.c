@@ -25,8 +25,6 @@
 #include <linux/of_gpio.h>
 #include <linux/sysfs.h>
 
-struct debug_logger *g_logger;
-
 static void et7xx_reset(struct et7xx_data *etspi)
 {
 	pr_debug("Entry\n");

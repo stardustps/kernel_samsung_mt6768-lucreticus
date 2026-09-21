@@ -33,7 +33,6 @@ static const struct of_device_id gw3x_of_match[] = {
 MODULE_DEVICE_TABLE(of, gw3x_of_match);
 
 static struct gf_device *g_data;
-struct debug_logger *g_logger;
 
 static ssize_t bfs_values_show(struct device *dev,
 				      struct device_attribute *attr, char *buf)
