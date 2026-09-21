@@ -252,6 +252,12 @@ jobs:
           # compat <4.18 struct redefinition collides; skip it when present.
           perl -0pi -e 's/#if LINUX_VERSION_CODE < KERNEL_VERSION\(4, 18, 0\)\nstruct __kernel_timespec \{/#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 18, 0) \&\& !defined(__kernel_timespec)\nstruct __kernel_timespec {/' net/wireguard/compat/compat.h
           grep -n "__kernel_timespec" net/wireguard/compat/compat.h | head
+          # This tree also backported skb_reset_redirect into skbuff.h, so the
+          # compat <5.5.14/<5.4.29 definition collides; drop the compat copy.
+          perl -pi -e 's/^#if \(LINUX_VERSION_CODE < KERNEL_VERSION\(5, 5, 14\).*$/#if 0 \/* tree provides skb_reset_redirect *\//' net/wireguard/compat/compat.h
+          grep -q '^#if 0 /\* tree provides skb_reset_redirect' net/wireguard/compat/compat.h || { echo 'skb_reset_redirect compat patch did not apply'; exit 1; }
+          grep -q 'KERNEL_VERSION(5, 5, 14)' net/wireguard/compat/compat.h && { echo 'skb_reset_redirect compat guard still present'; exit 1; }
+          grep -n "skb_reset_redirect" net/wireguard/compat/compat.h | head
 
       - name: Compile Kernel
         run: |
