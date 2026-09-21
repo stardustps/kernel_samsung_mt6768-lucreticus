@@ -586,7 +586,9 @@ CONFIG_CMDLINE_FROM_BOOTLOADER=y
 # CONFIG_CMDLINE_EXTEND is not set
 # CONFIG_CMDLINE_FORCE is not set
 # CONFIG_EFI is not set
-# CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE is not set
+CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE=y
+CONFIG_IMG_GZ_DTB=y
+CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE_NAMES="mediatek/merged/a32/a32_eur_open_w00_r00 mediatek/merged/a32/a32_eur_open_w00_r02 mediatek/merged/a32/a32_eur_open_w00_r04 mediatek/merged/a22/a22_eur_open_w00_r00 mediatek/merged/a22/a22_eur_open_w00_r01 mediatek/merged/a22/a22_eur_open_w00_r02 mediatek/merged/f22/f22_swa_ins_w00_r00 mediatek/merged/f22/f22_swa_ins_w00_r02 mediatek/merged/m22/m22_mea_jv_w00_r00 mediatek/merged/m22/m22_mea_jv_w00_r02 mediatek/merged/m32/m32_eur_open_w00_r01 mediatek/merged/m32/m32_eur_open_w00_r02"
 # CONFIG_UH is not set
 # CONFIG_UH_DEBUG is not set
 # CONFIG_UH_RKP is not set

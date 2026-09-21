@@ -1,151 +1,183 @@
-# kernel_samsung_mt6768-lucreticus
+# How do I submit patches to Android Common Kernels
 
-Lucreticus kernel for Samsung Galaxy A32 (SM-A325F, MT6768 / MT6769) and siblings. Based on Samsung `4.14.357` (OpenELA `4.14.357-openela`), rebranded from slmkernel to **lucreticus `r1-Armaros`** (`CONFIG_LOCALVERSION="-lucreticus_r1-Armaros@dotarma"`).
+1. BEST: Make all of your changes to upstream Linux. If appropriate, backport to the stable releases.
+   These patches will be merged automatically in the corresponding common kernels. If the patch is already
+   in upstream Linux, post a backport of the patch that conforms to the patch requirements below.
+   - Do not send patches upstream that contain only symbol exports. To be considered for upstream Linux,
+additions of `EXPORT_SYMBOL_GPL()` require an in-tree modular driver that uses the symbol -- so include
+the new driver or changes to an existing driver in the same patchset as the export.
+   - When sending patches upstream, the commit message must contain a clear case for why the patch
+is needed and beneficial to the community. Enabling out-of-tree drivers or functionality is not
+a persuasive case.
 
-Source: `stardustps/kernel_samsung_mt6768-lucreticus` (`rc1` branch, fork of `Samsung-MT6769-Devs/android_kernel_samsung_mt6768`).
+2. LESS GOOD: Develop your patches out-of-tree (from an upstream Linux point-of-view). Unless these are
+   fixing an Android-specific bug, these are very unlikely to be accepted unless they have been
+   coordinated with kernel-team@android.com. If you want to proceed, post a patch that conforms to the
+   patch requirements below.
 
-## Devices
+# Common Kernel patch requirements
 
-- `a32` — Galaxy A32 (k69v1_64_titan_marmot)
-- `a22` — Galaxy A22 (k69v1_64_titan_buffalo)
-- `f22` / `m22` / `m32` — experimental, same SoC family
-- Common base: `arch/arm64/configs/mt6768_lucreticus_defconfig` + one device config (`a32.config`, `a22.config`, `f22.config`, `m22.config`, or `m32.config`) merged to `compiled_defconfig` at build time.
+- All patches must conform to the Linux kernel coding standards and pass `scripts/checkpatch.pl`
+- Patches shall not break gki_defconfig or allmodconfig builds for arm, arm64, x86, x86_64 architectures
+(see  https://source.android.com/setup/build/building-kernels)
+- If the patch is not merged from an upstream branch, the subject must be tagged with the type of patch:
+`UPSTREAM:`, `BACKPORT:`, `FROMGIT:`, `FROMLIST:`, or `ANDROID:`.
+- All patches must have a `Change-Id:` tag (see https://gerrit-review.googlesource.com/Documentation/user-changeid.html)
+- If an Android bug has been assigned, there must be a `Bug:` tag.
+- All patches must have a `Signed-off-by:` tag by the author and the submitter
 
-## Features
+Additional requirements are listed below based on patch type
 
-- **Rebrand** — `slmkernel` → `lucreticus` (`SLMKERNEL` → `LUCRETICUS`), `build_slmkernel.sh` → `build_lucreticus.sh`, `mt6768_slm_defconfig` → `mt6768_lucreticus_defconfig`, `CONFIG_LOCALVERSION`.
-- **Nomount** — `fs/nomount.{c,h}` hides sensitive mountpoints from `/proc/{mounts,mountinfo,mountstats}` via `do_mount`/`do_umount` checks and `proc_namespace` filtering, `CONFIG_NOMOUNT=y`, toggle `/proc/nomount_enabled`.
-- **BBRv2** — backported from `DPR-KernelArchive/sweetie_star_kernel_xiaomi_sweet` (`sixteen-qpr1`, `RainyXeon <rainyxeon@gmail.com>`), keeps BBRv1 in `tcp_bbr.c` and adds BBRv2 as `tcp_bbr2.c` (`TCP_CONG_BBR2`, `DEFAULT_BBR2`), `CONFIG_TCP_CONG_BBR2=y`.
-- **ReSukiSU** — the optional CI setup uses its `main` branch with `CONFIG_KSU_MANUAL_HOOK=y` and disables `CONFIG_KSU_SUSFS` to avoid SUSFS inline hook mode. The existing manual hooks are in `fs/exec.c`, `fs/open.c`, and `fs/stat.c`. NoMount remains independently controlled by `CONFIG_NOMOUNT`.
-- **Droidspaces** — container prerequisites enabled in base defconfig: `SYSVIPC, POSIX_MQUEUE, IPC_NS, USER_NS, CGROUP_NET_PRIO, DEVTMPFS, TMPFS_POSIX_ACL/XATTR, NF_TABLES, NETFILTER_XT_MATCH_ADDRTYPE`.
-- **Aigis** — VoLTE IPv6 `ip6_output` cork fix retained, Mali Valhall `r32p1` pinned (`CONFIG_MTK_GPU_VERSION="mali valhall r32p1"`).
-- **Lucreti CPUFreq governors** — One kernel includes `lucretiperf`, `lucretibalance`, and `lucretibattery`, with `lucretibalance` as the default. They scale CPU frequency from policy-limited CPU load with progressively lower frequency targets and longer sampling intervals. Each governor exposes `target_load`, `floor_load`, `down_samples`, `input_boost_ms`, and `sampling_rate` under its CPUFreq sysfs directory for runtime tuning. Select a governor for each CPU policy in a kernel manager or through its `scaling_governor` sysfs file. GPU clocks, voltage tables, scheduler options, and tick rate are still chosen at build time. Android userspace may override the default governor during boot.
-- **Zen I/O scheduler** — `block/zen-iosched.c` (FCFS + deadlines, `sync_expire=HZ/2`, `async_expire=5*HZ`), `IOSCHED_ZEN` / `DEFAULT_ZEN`.
-- **Dynamic fsync (experimental)** — defers writable regular-file `fsync`/`fdatasync` while the display is on, then schedules a sync five seconds after the first deferral, at display blank, and at suspend. It is controlled by `CONFIG_DYNAMIC_FSYNC` and the kernel-manager-compatible `/sys/kernel/dyn_fsync/Dyn_fsync_active`. A crash before the next sync can lose recent writes.
-- **OLED burn-in profile (experimental)** — caps normal brightness on the A32/A22/M22/M32 Samsung OLED panels (including F22 through its M22 config) at level 220 by default (`CONFIG_LUCRETICUS_BURNIN_PROTECTION`). AOD and the A32 fingerprint mask path are left to the panel driver. Runtime parameters are `/sys/module/lucreticus_burnin/parameters/enabled` and `max_level` (1–255); changes take effect on the next brightness update.
-- **Simple GPU Algorithm / Mali touch boost (experimental)** — optional GED tuning for the MT6768 Mali GPU. `MTK_SIMPLE_GPU_ALGORITHM` biases high-load requests up one OPP and holds against rapid downscaling; `MTK_MALI_BOOST` adapts AdrenoBoost-style touch requests to Mali, with level 0–3 through `/sys/module/ged/parameters/mali_boost_level`. GED's customization and thermal ceilings remain active.
-- **MediaTek bus boost (experimental)** — `MTK_DEVFREQ_BUS_BOOST` requests DDR OPP 1 for 100 ms at the start of a touch through MediaTek DVFSRC PM QoS, avoiding repeated requests on every movement. Runtime parameters are `enabled`, `boost_opp` (0–2), and `duration_ms` (20–1000) under `/sys/module/mtk_bus_boost/parameters/`.
-- **SchedTune/uclamp tuning (experimental)** — `LUCRETICUS_SCHED_TUNING` extends the SchedTune boost hold from 50 to 80 ms and starts the global uclamp minimum at 64/1024. The existing cgroup and `/proc/sys/kernel/sched_uclamp_util_min` controls can change tuning after boot.
-- **PD and QC/AFC charge profile (experimental)** — `LUCRETICUS_FAST_CHARGE_PROFILE` prefers an advertised fixed USB-PD profile at or below 9 V with the highest available current, falls back to 5 V if no suitable higher profile exists, and requests 9 V rather than 12 V for QC/AFC high-voltage charging. It does not raise charger, cable, battery, or thermal limits; actual current depends on the source and the Samsung battery votes.
-- **Audio-jack consumer IR (experimental)** — `tools/lucreticus/audio_jack_ir.py` produces a 48 kHz stereo NEC waveform for a *separate* audio-jack IR LED emitter. Run `python3 tools/lucreticus/audio_jack_ir.py 0x20DF10EF power.wav`, copy the WAV to the phone, and play it through the wired output with a suitable adapter. The workflow option places the tool in `extras/` inside the zip for manual extraction. This transmits consumer IR only; it does not provide IrDA networking or an IR receiver.
-- **Bluetooth HCI trace and transport (experimental)** — `MTK_BT_HCI_TRACE` adds a `mtk_bt:mtk_bt_hci` tracefs event on `/dev/stpbt` traffic. Enable it only during capture because HCI payloads may contain private data. `MTK_BT_AUDIO_TRANSPORT` raises the driver HCI buffer from 2048 to 4096 bytes. A2DP codec choice and bitrate are negotiated by the Android Bluetooth stack and the headset, so the kernel transport option cannot force a codec bitrate.
-- **WoWLAN link retention (experimental)** — `MTK_WLAN_WOWLAN_KEEPALIVE` adds disconnect and beacon-loss wake triggers and permits ARP in the existing MediaTek WoWLAN firmware mode. The existing Wi-Fi vendor keep-alive command still needs a userspace request and supported firmware; enabling the build option alone does not schedule periodic packets.
-- **Touch boost coordination (experimental)** — the MediaTek DDR touch boost applies a shared cooldown and also kicks the GED Mali boost callback, so one touch contact does not create duplicate GPU and DDR boost requests. Lucreti accounts for I/O wait and applies the CPU policy’s thermal frequency ceiling.
-- **Boot diagnostics (experimental)** — add `boot_diagnostics` to `experimental_features` to package `collect_boot_diagnostics.sh` in the flashable ZIP. Run it as root after boot to collect pstore, CPUFreq policies and tables, thermal zones, GPU and bus parameters, kernel properties, and the selected workflow feature set.
-- **AIO** — gated completion wakeups (`wait_min_nr` / `last_wakeup_completed`) and acquire/release for `ring->tail`, `CONFIG_AIO_OPTIMIZE=y`.
-- **Bypass charging** — `CONFIG_MTK_BYPASS_CHARGING` (mediatek), `sysfs` `/sys/kernel/bypass_charging/bypass_charging` and `bypass_charging` module param, `_mtk_charger_do_charging` suppresses charging when enabled.
-- **WireGuard** — `wireguard-linux-compat` via `kernel-tree-scripts/jury-rig.sh` at build time, `CONFIG_WIREGUARD` + `NET_UDP_TUNNEL/DST_CACHE/CRYPTO_ALGAPI`, compat `__kernel_timespec` guarded for this tree's `time64.h` backport.
-- **Docker/LXC** — `CFS_BANDWIDTH, CGROUP_HUGETLB, NET_CLS_CGROUP, MACVLAN, VXLAN, BRIDGE_VLAN_FILTERING, BTRFS_FS`.
-- **LTO** — `LTO_CLANG` + `THINLTO` (`-flto=thin`, `--thinlto-cache-dir`) or full (`-flto`), `LD_FLAGS_LTO_CLANG=-mllvm -import-instr-limit=5`.
-- **Clocks / Tick** — workflow controls for `LUCRETICUS_OC_GPU/CCI/RAMDVFS` vs `LUCRETICUS_UV`, `CONFIG_HZ` (`100/250/300/1000`), and optional `SCHED_BORE`.
-- **Security / Debug strip** — `TZDEV/TEGRIS` and leaf debug (`DYNAMIC_DEBUG, DEBUG_INFO, SCHED_DEBUG, DEBUG_LIST, FTRACE, MAGIC_SYSRQ, KALLSYMS_ALL`) toggles, `SCHED_DEBUG/DEBUG_LIST/MAGIC_SYSRQ` force-selected by `mediatek/Kconfig.default` and survive stripping.
-- **CVE backports** — `algif_aead` Copy Fail `CVE-2026-31431` (out-of-place), `raw_send_hdrinc` `CVE-2026-64114` (`ihl<5`), `esp4/esp6` Dirty Frag `CVE-2026-43284` (`SKBTX_SHARED_FRAG` / `skb_cow_data` fallback), `netprio` `css->id` vs removed `cgroup->id`.
-- **Netprio fix** — `task_netprioidx` / `netprio_cgroup` use `css->id`.
-- **AnyKernel3** — `stardustps/sta7dust` packaging (`Image`→`Image.gz`, flashable zip).
+## Requirements for backports from mainline Linux: `UPSTREAM:`, `BACKPORT:`
 
-## Compare CPU governors on a phone
+- If the patch is a cherry-pick from Linux mainline with no changes at all
+    - tag the patch subject with `UPSTREAM:`.
+    - add upstream commit information with a `(cherry picked from commit ...)` line
+    - if applicable, prefer to cherry-pick the commit from the corresponding LTS branch.
+    - append new signature tags (e.g. `Bug:`, `Change-Id:`, etc.) at the end to keep the
+      chronological order.
+    - Example:
+        - if the upstream commit message is
+```
+        important patch from upstream
 
-After booting the new kernel, copy `tools/lucreticus/measure_governor.sh` to `/data/local/tmp/` using ADB on a host that can reach the phone, or copy it directly on the phone. Run it in a root shell once per governor:
+        This is the detailed description of the important patch
 
-```sh
-sh /data/local/tmp/measure_governor.sh schedutil 120
-sh /data/local/tmp/measure_governor.sh lucretibalance 120
-sh /data/local/tmp/measure_governor.sh lucretiperf 120
-sh /data/local/tmp/measure_governor.sh lucretibattery 120
+        Signed-off-by: Fred Jones <fred.jones@foo.org>
+```
+>- then Joe Smith would upload the patch for the common kernel as
+```
+        UPSTREAM: important patch from upstream
+
+        This is the detailed description of the important patch
+
+        Signed-off-by: Fred Jones <fred.jones@foo.org>
+
+        Bug: 135791357
+        Change-Id: I4caaaa566ea080fa148c5e768bb1a0b6f7201c01
+        (cherry picked from commit c31e73121f4c1ec41143423ac6ce3ce6dafdcec1)
+        Signed-off-by: Joe Smith <joe.smith@foo.org>
 ```
 
-Repeat the same workload and screen brightness for each 120-second run, preferably unplugged and starting at a similar temperature. The script prints its output directory under `/sdcard/Download/`, records CPU frequency residency and battery readings, and restores the previous governors when it exits. Copy the four directories to a computer and summarize them with:
+- If the patch requires any changes from the upstream version, tag the patch with `BACKPORT:`
+instead of `UPSTREAM:`.
+    - use the same tags as `UPSTREAM:`
+    - add comments about the changes under the `(cherry picked from commit ...)` line
+    - Example:
+```
+        BACKPORT: important patch from upstream
 
-```sh
-python3 tools/lucreticus/summarize_governors.py /path/to/lucreti-*
+        This is the detailed description of the important patch
+
+        Signed-off-by: Fred Jones <fred.jones@foo.org>
+
+        Bug: 135791357
+        Change-Id: I4caaaa566ea080fa148c5e768bb1a0b6f7201c01
+        (cherry picked from commit c31e73121f4c1ec41143423ac6ce3ce6dafdcec1)
+        [joe: Resolved minor conflict in drivers/foo/bar.c ]
+        Signed-off-by: Joe Smith <joe.smith@foo.org>
 ```
 
-The summary reports average requested CPU frequency, time at the highest frequency, transitions, battery charge change, and battery temperature. Repeat runs before drawing conclusions; these counters do not measure app frame times or battery life by themselves. Use a Perfetto trace for frame timing if smoothness is the goal.
+## Requirements for other backports: `FROMGIT:`, `FROMLIST:`,
 
-## How to build locally
+- If the patch has been merged into an upstream maintainer tree, but has not yet
+been merged into Linux mainline
+    - tag the patch subject with `FROMGIT:`
+    - add info on where the patch came from as `(cherry picked from commit <sha1> <repo> <branch>)`.
+This must be a branch on a tree which is normally merged into Linus's tree and is not rebased. For
+example, don't use `linux-next` which is rebased and never directly merged into Linus's tree, but
+you *can* use SHAs from `net` *or* `net-next`, which are merged into Linus's tree at various points
+in the release.
+    - if changes were required, use `BACKPORT: FROMGIT:`
+    - Example:
+        - if the commit message in the maintainer tree is
+```
+        important patch from upstream
 
-### Toolchain
+        This is the detailed description of the important patch
 
-ZyC Clang 14, e.g. `https://github.com/ZyCromerZ/Clang/releases/download/14.0.6-20250704-release/Clang-14.0.6-20250704.tar.gz`:
+        Signed-off-by: Fred Jones <fred.jones@foo.org>
+```
+>- then Joe Smith would upload the patch for the common kernel as
+```
+        FROMGIT: important patch from upstream
 
-```bash
-mkdir -p ~/zyc-clang
-tar -xf Clang-14.0.6-20250704.tar.gz -C ~/zyc-clang
-export TC=~/zyc-clang
-export CROSS_COMPILE=$TC/bin/aarch64-linux-gnu-
-export CROSS_COMPILE_ARM32=$TC/bin/arm-linux-gnueabi-
-export LD=$TC/bin/ld.lld
-export CC=$TC/bin/clang
-export ARCH=arm64
+        This is the detailed description of the important patch
+
+        Signed-off-by: Fred Jones <fred.jones@foo.org>
+
+        Bug: 135791357
+        (cherry picked from commit 878a2fd9de10b03d11d2f622250285c7e63deace
+         https://git.kernel.org/pub/scm/linux/kernel/git/foo/bar.git test-branch)
+        Change-Id: I4caaaa566ea080fa148c5e768bb1a0b6f7201c01
+        Signed-off-by: Joe Smith <joe.smith@foo.org>
 ```
 
-Dependencies (host):
 
-```bash
-sudo apt update
-sudo apt install -y \
-  build-essential bc bison flex patch pkg-config git curl tar xz-utils zip unzip \
-  cpio rsync kmod perl python3 python-is-python3 libssl-dev libelf-dev pahole lld \
-  libncurses-dev zlib1g-dev libyaml-dev lz4 zstd device-tree-compiler adb fastboot
+- If the patch has been submitted to LKML, but not accepted into any maintainer tree
+    - tag the patch subject with `FROMLIST:`
+    - add a `Link:` tag with a link to the submittal on lore.kernel.org
+    - add a `Bug:` tag with the Android bug (required for patches not accepted into
+a maintainer tree)
+    - if changes were required, use `BACKPORT: FROMLIST:`
+    - Example:
+```
+        FROMLIST: important patch from upstream
+
+        This is the detailed description of the important patch
+
+        Signed-off-by: Fred Jones <fred.jones@foo.org>
+
+        Bug: 135791357
+        Link: https://lore.kernel.org/lkml/20190619171517.GA17557@someone.com/
+        Change-Id: I4caaaa566ea080fa148c5e768bb1a0b6f7201c01
+        Signed-off-by: Joe Smith <joe.smith@foo.org>
 ```
 
-### Via helper script
+- If a patch has been submitted to the community, but rejected, do NOT use the
+  `FROMLIST:` tag to try to hide this fact.  Use the `ANDROID:` tag as
+  described below as this must be considered as an Android-specific submission,
+  not an upstream submission as the community will not accept these changes
+  as-is.
 
-```bash
-./build_lucreticus.sh
-# prompts: a32/a22/f22/m22/m32, then merges
-# mt6768_lucreticus_defconfig + <device>.config
-# appends: # CONFIG_ALWAYS_ENFORCE is not set, CONFIG_ALWAYS_PERMISSIVE=y,
-#          CONFIG_MTK_GPU_VERSION="mali valhall r32p1"
-# runs: make O=out compiled_defconfig && make -j$(nproc) -C out
+## Requirements for Android-specific patches: `ANDROID:`
+
+- If the patch is fixing a bug to Android-specific code
+    - tag the patch subject with `ANDROID:`
+    - add a `Fixes:` tag that cites the patch with the bug
+    - Example:
+```
+        ANDROID: fix android-specific bug in foobar.c
+
+        This is the detailed description of the important fix
+
+        Fixes: 1234abcd2468 ("foobar: add cool feature")
+        Change-Id: I4caaaa566ea080fa148c5e768bb1a0b6f7201c01
+        Signed-off-by: Joe Smith <joe.smith@foo.org>
 ```
 
-The script uses `lucretibalance` by default and includes all three Lucreti governors. Add `ksu.config` to the merged config for KernelSU.
+- If the patch is a new feature
+    - tag the patch subject with `ANDROID:`
+    - add a `Bug:` tag with the Android bug (required for android-specific features)
 
-### Manual
+## Requirements for revert patches:
 
-```bash
-export CFGDIR=arch/arm64/configs
-cat $CFGDIR/mt6768_lucreticus_defconfig $CFGDIR/a32.config > $CFGDIR/compiled_defconfig
-# optional: cat $CFGDIR/ksu.config >> $CFGDIR/compiled_defconfig  # after KernelSU setup.sh
-# optional toggles via scripts/config:
-# scripts/config --file $CFGDIR/compiled_defconfig --enable CONFIG_IOSCHED_ZEN
-# scripts/config --file $CFGDIR/compiled_defconfig --enable CONFIG_MTK_BYPASS_CHARGING
-echo '# CONFIG_ALWAYS_ENFORCE is not set' >> $CFGDIR/compiled_defconfig
-echo 'CONFIG_ALWAYS_PERMISSIVE=y' >> $CFGDIR/compiled_defconfig
-echo 'CONFIG_MTK_GPU_VERSION="mali valhall r32p1"' >> $CFGDIR/compiled_defconfig
-make O=out -j$(nproc) compiled_defconfig
-make -s O=out -j$(nproc)
-# out/arch/arm64/boot/Image (gzip to Image.gz for AnyKernel3)
+- Add a reason for the revert
+- Do not delete or modify the revert information that is generated when using
+`git revert`
+- If modifications have been made after creating the revert, include a list of
+these in the commit message
+- Example:
 ```
+        Revert "ANDROID: fix android-specific bug in foobar.c"
 
-KernelSU setup (if needed): `curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash`. Keep `CONFIG_KSU_MANUAL_HOOK=y` and `# CONFIG_KSU_SUSFS is not set` in `ksu.config`.
+        This reverts commit a57a7913f53e34c8a8d905444b126b3316146e69.
 
-WireGuard (if enabled in CI): `git clone --depth 1 https://github.com/WireGuard/wireguard-linux-compat.git && ./wireguard-linux-compat/kernel-tree-scripts/jury-rig.sh $(pwd)`.
+        Reason for revert: Breaks a lot of internal tests
 
-## How to build via GitHub Actions
+        Additional modifications: Resolved merge conflicts
 
-`Actions → Build Lucreticus Kernel → Run workflow`:
-
-- `device` — `a32/a22/f22/m22/m32/all` (matrix fans out across devices)
-- `ksu` — add KernelSU
-- One build per selected device includes all three Lucreti CPUFreq governors; `lucretibalance` is the default, and a kernel manager can select the others at runtime
-- `opt` — `O2/O3` (`KCFLAGS/KCPPFLAGS`)
-- `droidspaces` / `nomount` / `zen` / `aio_opt` / `wireguard` / `docker` / `bypass_charging`
-- `lto` — `none/thin/full`
-- `clock` — `stock/overclock/downclock` (`LUCRETICUS_OC_*` / `UV`)
-- `hz` — `100/250/300/1000` (`CONFIG_HZ`)
-- `gpu_clock` — `stock/overclock/downclock/max` (`LUCRETICUS_OC_GPU`)
-- `sched_bore` — enable BORE scheduler tuning at build time, on by default to match the former balance build
-- `nosec` / `nodebug` / `use_cache` — experimentals
-- `dynamic_fsync` / `burnin` / `simple_gpu` / `mali_boost` / `mtk_bus_boost` — independent experimental feature toggles, off by default
-- `fast_charge` — high-current PD / 9 V QC-AFC profile switch, off by default
-- `experimental_features` — comma-separated independent flags, with no spaces: `sched_tuning`, `audio_jack_ir`, `bt_hci_snoop`, `bt_audio_transport`, `wowlan_keepalive`, `boot_diagnostics`. Leave blank to disable all. For example, `sched_tuning,bt_hci_snoop` enables those two only. This shared input keeps the workflow within GitHub's 25-input limit. The workflow checks the generated kernel config and fails if an enabled option is unavailable; cache reuse requires the same source revision and effective feature set.
-
-Build does: deps → ZyC Clang 14 → optional KernelSU/WireGuard → merge defconfigs → `scripts/config` toggles → `make compiled_defconfig` → `make -s -C out -j$(nproc)` → `stardustps/sta7dust` (`Image`→`Image.gz`) → flashable zip `lucreticus-r1-Armaros-<device>-<opt>[-bore][-ksu][-ds][-nm][-zen][-docker][-bypass][-dfsync][-burnin][-sgpu][-mboost][-busboost][-stune][-fastchg][-irjack][-bttrace][-btbuf][-wowlan][-oc/-uv][-hz][-gpu*][-wg][-thinlto][-cache]-<sha>.zip` → artifact + single Telegram summary (`notify` job, `sendMessage` + per-zip `sendDocument`, guarded against empty artifact set).
-
-Secrets: `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` for `sendDocument`.
-
-## License
-
-GPL-2.0. See `COPYING`. MediaTek/Samsung downstream files retain their original headers.
+        Bug: 135791357
+        Change-Id: I4caaaa566ea080fa148c5e768bb1a0b6f7201c01
+        Signed-off-by: Joe Smith <joe.smith@foo.org>
+```

@@ -53,7 +53,7 @@ CONFIG_MTK_GPU_VERSION="mali valhall r32p1"
 make -C $(pwd) O=$(pwd)/out -j$(nproc) compiled_defconfig
 make -s -C $(pwd) O=$(pwd)/out -j$(nproc)
 
-IMAGECHECK="$(pwd)/out/arch/arm64/boot/Image"
+IMAGECHECK="$(pwd)/out/arch/arm64/boot/Image.gz-dtb"
 
 if [ -f "$IMAGECHECK" ]; then
     echo "built lucreticus for device: $DEVICE"
@@ -77,7 +77,7 @@ if [ -f "$IMAGECHECK" ]; then
     #only for me delete if u want 💩💩💩💩
     read -p "copy to kernal directory? (are u vigus?) y/n   " choice
     case "$choice" in 
-      y|Y ) cp out/arch/arm64/boot/Image ~/Downloads/buildkernal/Image;;
+      y|Y ) cp "$IMAGECHECK" ~/Downloads/buildkernal/Image.gz-dtb;;
       n|N ) echo "k";;
       * ) echo "nvm";;
     esac
