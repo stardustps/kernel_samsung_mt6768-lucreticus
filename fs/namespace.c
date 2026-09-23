@@ -36,7 +36,6 @@
 #endif
 #include "pnode.h"
 #include "internal.h"
-#include "nomount.h"
 
 #ifdef CONFIG_KDP_NS
 #define KDP_MOUNT_SYSTEM "/system"
@@ -2008,11 +2007,6 @@ static int do_umount(struct mount *mnt, int flags)
 #endif
 	int retval;
 
-#ifdef CONFIG_NOMOUNT
-	retval = nomount_hook_do_umount(mnt, flags);
-	if (retval)
-		return retval;
-#endif
 #if defined(CONFIG_KDP_NS) || defined(CONFIG_RUSTUH_KDP_NS)
 	retval = security_sb_umount(mnt->mnt, flags);
 #else
@@ -3476,11 +3470,6 @@ long do_mount(const char *dev_name, const char __user *dir_name,
 	unsigned int mnt_flags = 0, sb_flags;
 	int retval = 0;
 
-#ifdef CONFIG_NOMOUNT
-	retval = nomount_hook_do_mount(dev_name, dir_name, type_page, flags);
-	if (retval)
-		return retval;
-#endif
 	/* Discard magic */
 	if ((flags & MS_MGC_MSK) == MS_MGC_VAL)
 		flags &= ~MS_MGC_MSK;

@@ -40,7 +40,7 @@ on:
         default: true
         type: boolean
       nomount:
-        description: 'Add nomount mountpoint-hiding hooks?'
+        description: 'Enable NoMount VFS path redirection?'
         required: true
         default: true
         type: boolean
@@ -320,7 +320,10 @@ jobs:
           if [ "${{ inputs.ksu }}" = "true" ]; then
             cat $CFGDIR/ksu.config >> $CFGDIR/compiled_defconfig
           fi
-          if [ "${{ inputs.nomount }}" != "true" ]; then
+          if [ "${{ inputs.nomount }}" = "true" ]; then
+            scripts/config --file $CFGDIR/compiled_defconfig \
+              --enable CONFIG_NOMOUNT
+          else
             scripts/config --file $CFGDIR/compiled_defconfig \
               --disable CONFIG_NOMOUNT
           fi
@@ -529,7 +532,12 @@ jobs:
             echo 'SUSFS inline hook mode must be disabled'
             exit 1
           fi
-          if [ "${{ inputs.nomount }}" = "true" ]; then require_config CONFIG_NOMOUNT; fi
+          if [ "${{ inputs.nomount }}" = "true" ]; then
+            require_config CONFIG_NOMOUNT
+          elif ! grep -Fqx '# CONFIG_NOMOUNT is not set' out/.config; then
+            echo 'NoMount was not disabled'
+            exit 1
+          fi
           if [ "${{ inputs.dynamic_fsync }}" = "true" ]; then require_config CONFIG_DYNAMIC_FSYNC; fi
           if [ "${{ inputs.burnin }}" = "true" ]; then require_config CONFIG_LUCRETICUS_BURNIN_PROTECTION; fi
           if [ "${{ inputs.simple_gpu }}" = "true" ]; then require_config CONFIG_MTK_SIMPLE_GPU_ALGORITHM; fi
