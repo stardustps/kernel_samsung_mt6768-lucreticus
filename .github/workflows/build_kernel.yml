@@ -35,7 +35,7 @@ on:
           - O2
           - O3
       droidspaces:
-        description: 'Add Droidspaces container support?'
+        description: 'Enable full DroidSpaces container support?'
         required: true
         default: true
         type: boolean
@@ -329,16 +329,53 @@ jobs:
           fi
           if [ "${{ inputs.droidspaces }}" = "true" ]; then
             scripts/config --file $CFGDIR/compiled_defconfig \
+              --enable CONFIG_SYSCTL \
               --enable CONFIG_SYSVIPC \
               --enable CONFIG_POSIX_MQUEUE \
+              --enable CONFIG_NAMESPACES \
+              --enable CONFIG_PID_NS \
+              --enable CONFIG_UTS_NS \
               --enable CONFIG_IPC_NS \
               --enable CONFIG_USER_NS \
+              --enable CONFIG_SECCOMP \
+              --enable CONFIG_SECCOMP_FILTER \
+              --enable CONFIG_CGROUPS \
+              --enable CONFIG_CGROUP_DEVICE \
+              --enable CONFIG_CGROUP_PIDS \
+              --enable CONFIG_MEMCG \
+              --enable CONFIG_CGROUP_SCHED \
+              --enable CONFIG_FAIR_GROUP_SCHED \
+              --enable CONFIG_CGROUP_FREEZER \
               --enable CONFIG_CGROUP_NET_PRIO \
               --enable CONFIG_DEVTMPFS \
+              --enable CONFIG_OVERLAY_FS \
               --enable CONFIG_TMPFS_POSIX_ACL \
               --enable CONFIG_TMPFS_XATTR \
+              --enable CONFIG_FW_LOADER \
+              --enable CONFIG_FW_LOADER_USER_HELPER_FALLBACK \
+              --enable CONFIG_FW_LOADER_USER_HELPER \
+              --enable CONFIG_NET_NS \
+              --enable CONFIG_VETH \
+              --enable CONFIG_BRIDGE \
+              --enable CONFIG_NETFILTER \
+              --enable CONFIG_BRIDGE_NETFILTER \
+              --enable CONFIG_NETFILTER_ADVANCED \
+              --enable CONFIG_NF_CONNTRACK \
+              --enable CONFIG_IP_NF_IPTABLES \
+              --enable CONFIG_IP_NF_FILTER \
+              --enable CONFIG_NF_NAT \
               --enable CONFIG_NF_TABLES \
-              --enable CONFIG_NETFILTER_XT_MATCH_ADDRTYPE
+              --enable CONFIG_NF_NAT_MASQUERADE_IPV4 \
+              --enable CONFIG_IP_NF_TARGET_MASQUERADE \
+              --enable CONFIG_NETFILTER_XT_TARGET_TCPMSS \
+              --enable CONFIG_NETFILTER_XT_MATCH_ADDRTYPE \
+              --enable CONFIG_NF_CT_NETLINK \
+              --enable CONFIG_NF_NAT_REDIRECT \
+              --enable CONFIG_IP_ADVANCED_ROUTER \
+              --enable CONFIG_IP_MULTIPLE_TABLES \
+              --enable CONFIG_NF_CONNTRACK_IPV4 \
+              --enable CONFIG_NF_NAT_IPV4 \
+              --enable CONFIG_IP_NF_NAT
           else
             scripts/config --file $CFGDIR/compiled_defconfig \
               --disable CONFIG_SYSVIPC \
@@ -537,6 +574,33 @@ jobs:
           elif ! grep -Fqx '# CONFIG_NOMOUNT is not set' out/.config; then
             echo 'NoMount was not disabled'
             exit 1
+          fi
+          if [ "${{ inputs.droidspaces }}" = "true" ]; then
+            for config in \
+              CONFIG_SYSCTL CONFIG_SYSVIPC CONFIG_POSIX_MQUEUE \
+              CONFIG_NAMESPACES CONFIG_PID_NS CONFIG_UTS_NS CONFIG_IPC_NS \
+              CONFIG_USER_NS CONFIG_SECCOMP CONFIG_SECCOMP_FILTER \
+              CONFIG_CGROUPS CONFIG_CGROUP_DEVICE CONFIG_CGROUP_PIDS \
+              CONFIG_MEMCG CONFIG_CGROUP_SCHED CONFIG_FAIR_GROUP_SCHED \
+              CONFIG_CGROUP_FREEZER CONFIG_CGROUP_NET_PRIO CONFIG_DEVTMPFS \
+              CONFIG_OVERLAY_FS CONFIG_TMPFS_POSIX_ACL CONFIG_TMPFS_XATTR \
+              CONFIG_FW_LOADER CONFIG_FW_LOADER_USER_HELPER_FALLBACK \
+              CONFIG_FW_LOADER_USER_HELPER CONFIG_NET_NS \
+              CONFIG_VETH CONFIG_BRIDGE CONFIG_BRIDGE_NETFILTER \
+              CONFIG_NETFILTER CONFIG_NETFILTER_ADVANCED CONFIG_NF_CONNTRACK \
+              CONFIG_IP_NF_IPTABLES CONFIG_IP_NF_FILTER CONFIG_NF_NAT \
+              CONFIG_NF_TABLES CONFIG_NF_NAT_MASQUERADE_IPV4 \
+              CONFIG_IP_NF_TARGET_MASQUERADE CONFIG_NETFILTER_XT_TARGET_TCPMSS \
+              CONFIG_NETFILTER_XT_MATCH_ADDRTYPE CONFIG_NF_CT_NETLINK \
+              CONFIG_NF_NAT_REDIRECT CONFIG_IP_ADVANCED_ROUTER \
+              CONFIG_IP_MULTIPLE_TABLES CONFIG_NF_CONNTRACK_IPV4 \
+              CONFIG_NF_NAT_IPV4 CONFIG_IP_NF_NAT; do
+              require_config "$config"
+            done
+            if grep -Fqx 'CONFIG_ANDROID_PARANOID_NETWORK=y' out/.config; then
+              echo 'Android paranoid networking must be disabled for DroidSpaces'
+              exit 1
+            fi
           fi
           if [ "${{ inputs.dynamic_fsync }}" = "true" ]; then require_config CONFIG_DYNAMIC_FSYNC; fi
           if [ "${{ inputs.burnin }}" = "true" ]; then require_config CONFIG_LUCRETICUS_BURNIN_PROTECTION; fi
