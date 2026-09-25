@@ -311,7 +311,10 @@ jobs:
             --enable CONFIG_CPU_FREQ_GOV_LUCRETI \
             --enable CONFIG_CPU_FREQ_DEFAULT_GOV_LUCRETIBALANCE \
             --disable CONFIG_CPU_FREQ_DEFAULT_GOV_LUCRETIPERF \
-            --disable CONFIG_CPU_FREQ_DEFAULT_GOV_LUCRETIBATTERY
+            --disable CONFIG_CPU_FREQ_DEFAULT_GOV_LUCRETIBATTERY \
+            --enable CONFIG_TCP_CONG_BBR2 \
+            --disable CONFIG_DEFAULT_BIC \
+            --enable CONFIG_DEFAULT_BBR2
           if [ "${{ inputs.sched_bore }}" = "true" ]; then
             scripts/config --file $CFGDIR/compiled_defconfig --enable CONFIG_SCHED_BORE
           else
@@ -557,6 +560,12 @@ jobs:
           }
           require_config CONFIG_CPU_FREQ_GOV_LUCRETI
           require_config CONFIG_CPU_FREQ_DEFAULT_GOV_LUCRETIBALANCE
+          require_config CONFIG_TCP_CONG_BBR2
+          require_config CONFIG_DEFAULT_BBR2
+          grep -Fqx 'CONFIG_DEFAULT_TCP_CONG="bbr2"' out/.config || {
+            echo 'BBRv2 was not selected as the default TCP congestion control'
+            exit 1
+          }
           require_config CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE
           require_config CONFIG_IMG_GZ_DTB
           if [ "${{ inputs.sched_bore }}" = "true" ]; then

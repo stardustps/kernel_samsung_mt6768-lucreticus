@@ -22,6 +22,8 @@ static u32 optional_ops[] = {
 };
 
 static u32 unsupported_ops[] = {
+	offsetof(struct tcp_congestion_ops, tso_segs),
+	offsetof(struct tcp_congestion_ops, skb_marked_lost),
 	offsetof(struct tcp_congestion_ops, get_info),
 };
 

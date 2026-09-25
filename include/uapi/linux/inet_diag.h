@@ -195,9 +195,41 @@ struct tcp_bbr_info {
 	__u32	bbr_cwnd_gain;		/* cwnd gain shifted left 8 bits */
 };
 
+/* Phase as reported in netlink/ss stats. */
+enum tcp_bbr2_phase {
+	BBR2_PHASE_INVALID		= 0,
+	BBR2_PHASE_STARTUP		= 1,
+	BBR2_PHASE_DRAIN		= 2,
+	BBR2_PHASE_PROBE_RTT		= 3,
+	BBR2_PHASE_PROBE_BW_UP		= 4,
+	BBR2_PHASE_PROBE_BW_DOWN	= 5,
+	BBR2_PHASE_PROBE_BW_CRUISE	= 6,
+	BBR2_PHASE_PROBE_BW_REFILL	= 7
+};
+
+struct tcp_bbr2_info {
+	__u32	bbr_bw_lsb;
+	__u32	bbr_bw_msb;
+	__u32	bbr_min_rtt;
+	__u32	bbr_pacing_gain;
+	__u32	bbr_cwnd_gain;
+	__u32	bbr_bw_hi_lsb;
+	__u32	bbr_bw_hi_msb;
+	__u32	bbr_bw_lo_lsb;
+	__u32	bbr_bw_lo_msb;
+	__u8	bbr_mode;
+	__u8	bbr_phase;
+	__u8	unused1;
+	__u8	bbr_version;
+	__u32	bbr_inflight_lo;
+	__u32	bbr_inflight_hi;
+	__u32	bbr_extra_acked;
+};
+
 union tcp_cc_info {
 	struct tcpvegas_info	vegas;
 	struct tcp_dctcp_info	dctcp;
 	struct tcp_bbr_info	bbr;
+	struct tcp_bbr2_info	bbr2;
 };
 #endif /* _UAPI_INET_DIAG_H_ */
