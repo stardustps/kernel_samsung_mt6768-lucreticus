@@ -748,14 +748,14 @@ jobs:
             SUFFIX="$SUFFIX-nodebug"
           fi
           SUFFIX="$SUFFIX-${{ env.GPU_CHOICE }}"
-          zip -r9 ../lucreticus-r1-Armaros-${{ env.DEVICE_CHOICE }}-$SUFFIX-${{ env.SHORT_SHA }}.zip * -x .git README.md *placeholder
-          ls -lh ../lucreticus-r1-Armaros-*.zip
+          zip -r9 ../lucreticus-r2-Elysium-${{ env.DEVICE_CHOICE }}-$SUFFIX-${{ env.SHORT_SHA }}.zip * -x .git README.md *placeholder
+          ls -lh ../lucreticus-r2-Elysium-*.zip
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: lucreticus-r1-Armaros-${{ env.DEVICE_CHOICE }}-${{ env.GPU_CHOICE }}-${{ inputs.ksu && 'ksu' || 'standard' }}
-          path: lucreticus-r1-Armaros-*.zip
+          name: lucreticus-r2-Elysium-${{ env.DEVICE_CHOICE }}-${{ env.GPU_CHOICE }}-${{ inputs.ksu && 'ksu' || 'standard' }}
+          path: lucreticus-r2-Elysium-*.zip
 
   notify:
     name: Telegram summary
@@ -780,7 +780,7 @@ jobs:
             esac
           }
           shopt -s nullglob
-          ZIPS=(lucreticus-r1-Armaros-*.zip)
+          ZIPS=(lucreticus-r2-Elysium-*.zip)
           if [ ${#ZIPS[@]} -eq 0 ]; then
             echo "error: no lucreticus zips downloaded, refusing to send an empty notification"
             exit 1
@@ -814,15 +814,15 @@ jobs:
           GPU_CLOCK_STATUS="${{ inputs.gpu_clock }}"
           LIST=""
           COUNT=0
-          for ZIP in lucreticus-r1-Armaros-*.zip; do
+          for ZIP in lucreticus-r2-Elysium-*.zip; do
             MD5=$(md5sum "$ZIP" | cut -d ' ' -f 1)
-            REST=${ZIP#lucreticus-r1-Armaros-}
+            REST=${ZIP#lucreticus-r2-Elysium-}
             DEV=${REST%%-*}
             COUNT=$((COUNT + 1))
             LIST=$(printf '%s\n- %s — md5: %s' "$LIST" "$DEV" "$MD5")
             echo "$ZIP $MD5" >> files.txt
           done
-          TEXT=$(printf '<i>build successfully.</i>\n\nlucreticus kernel (%s builds)\n\nkernel version: 5.10.239 (spoofed)\nlucreticus patch version: r1-Armaros\n\ncompiler: ZyC Clang 14 -%s\nlto: %s\nkernelsu integrated: %s\ndroidspaces: %s\nnomount: %s\niosched: %s\naio optimized: %s\nwireguard: %s\nsamsung security: %s\ndebug: %s\ncache: %s\nbypass charging: %s\ndocker: %s\ndynamic fsync: %s\nburn-in profile: %s\nsimple GPU: %s\nMali boost: %s\nMTK bus boost: %s\nclock: %s\ntick: %sHz\ngpu clock: %s\ncommit: %s\n%s' "$COUNT" "${{ inputs.opt }}" "none" "$KSU_STATUS" "$DS_STATUS" "$NM_STATUS" "$ZEN_STATUS" "$AIO_STATUS" "$WG_STATUS" "$SEC_STATUS" "$DBG_STATUS" "$CACHE_STATUS" "$BYPASS_STATUS" "$DOCKER_STATUS" "$FSYNC_STATUS" "$BURNIN_STATUS" "$SGPU_STATUS" "$MBOOST_STATUS" "$BUS_STATUS" "$CLOCK_STATUS" "$HZ_STATUS" "$GPU_CLOCK_STATUS" "${{ github.sha }}" "$LIST")
+          TEXT=$(printf '<i>build successfully.</i>\n\nlucreticus kernel (%s builds)\n\nkernel version: 4.14.357\nlucreticus patch version: r2-Elysium\n\ncompiler: ZyC Clang 14 -%s\nlto: %s\nkernelsu integrated: %s\ndroidspaces: %s\nnomount: %s\niosched: %s\naio optimized: %s\nwireguard: %s\nsamsung security: %s\ndebug: %s\ncache: %s\nbypass charging: %s\ndocker: %s\ndynamic fsync: %s\nburn-in profile: %s\nsimple GPU: %s\nMali boost: %s\nMTK bus boost: %s\nclock: %s\ntick: %sHz\ngpu clock: %s\ncommit: %s\n%s' "$COUNT" "${{ inputs.opt }}" "none" "$KSU_STATUS" "$DS_STATUS" "$NM_STATUS" "$ZEN_STATUS" "$AIO_STATUS" "$WG_STATUS" "$SEC_STATUS" "$DBG_STATUS" "$CACHE_STATUS" "$BYPASS_STATUS" "$DOCKER_STATUS" "$FSYNC_STATUS" "$BURNIN_STATUS" "$SGPU_STATUS" "$MBOOST_STATUS" "$BUS_STATUS" "$CLOCK_STATUS" "$HZ_STATUS" "$GPU_CLOCK_STATUS" "${{ github.sha }}" "$LIST")
           TEXT=$(printf '%s\nBORE scheduler: %s\nscheduler tuning: %s\nfast-charge profile: %s\naudio-jack IR tool: %s\nBT HCI trace: %s\nBT transport buffer: %s\nWoWLAN retention: %s\nboot diagnostics: %s' "$TEXT" "$BORE_STATUS" "$STUNE_STATUS" "$CHARGE_STATUS" "$IR_STATUS" "$BT_TRACE_STATUS" "$BT_BUF_STATUS" "$WOWLAN_STATUS" "$DIAGNOSTICS_STATUS")
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             --data-urlencode "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
